@@ -232,6 +232,10 @@ export default function NewOrderPage() {
       priority: deliveryAnalysis,
       status: 'Pendiente',
       createdAt: serverTimestamp(),
+      deliveryDates: {
+        from: lastSubmittedData.deliveryDates.from,
+        to: lastSubmittedData.deliveryDates.to
+      }
      };
 
     const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
@@ -834,3 +838,5 @@ export default function NewOrderPage() {
     </div>
   );
 }
+
+    
