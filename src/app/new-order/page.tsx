@@ -595,7 +595,7 @@ export default function NewOrderPage() {
                                 inputMode="numeric"
                                 placeholder="0"
                                 {...field}
-                                value={field.value}
+                                value={field.value as number}
                                 onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                               />
                             </FormControl>
