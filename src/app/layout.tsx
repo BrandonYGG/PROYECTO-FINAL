@@ -15,7 +15,7 @@ const ptSans = PT_Sans({
 
 export const metadata: Metadata = {
   title: 'Tlapaleria los Pinos',
-  description: 'Tu tienda única para materiales de construcción.',
+  description: 'Tu tienda única para materiales de construcción de alta calidad. Desde los cimientos hasta los acabados, tenemos todo para tu proyecto.',
 };
 
 export default function RootLayout({

@@ -24,7 +24,7 @@ body {
     --secondary-foreground: 0 0% 98%;
 
     --muted: 30 25% 90%;
-    --muted-foreground: 30 10% 40%;
+    --muted-foreground: 20 10% 35%; /* Darkened for better contrast */
 
     --accent: 240 6% 25%; /* Muted Teal: #3D405B */
     --accent-foreground: 0 0% 98%;
