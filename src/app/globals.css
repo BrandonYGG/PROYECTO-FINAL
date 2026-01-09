@@ -3,78 +3,70 @@
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-pt-sans), sans-serif;
 }
 
 @layer base {
   :root {
-    --background: 210 100% 98%; /* Almost white with a hint of blue */
-    --foreground: 220 15% 25%; /* Dark grayish blue */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 220 15% 25%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 25%;
-    --primary: 221 83% 53%; /* Strong blue */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 210 40% 92%; /* Lighter blue */
-    --secondary-foreground: 222 47% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215 25% 55%;
-    --accent: 210 40% 94%; /* Light blue accent */
-    --accent-foreground: 222 47% 11.2%;
+    --background: 30 50% 95%; /* Light Beige */
+    --foreground: 20 5% 15%; /* Dark Brown/Black */
+
+    --card: 30 50% 98%; /* Lighter Beige */
+    --card-foreground: 20 5% 15%;
+
+    --popover: 30 50% 98%;
+    --popover-foreground: 20 5% 15%;
+
+    --primary: 15 70% 62%; /* Terracotta: #E07A5F */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 6% 30%; /* Muted Teal for secondary text/elements */
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 30 25% 90%;
+    --muted-foreground: 30 10% 40%;
+
+    --accent: 240 6% 25%; /* Muted Teal: #3D405B */
+    --accent-foreground: 0 0% 98%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 214 32% 90%; /* Light blue-gray border */
-    --input: 214 32% 90%;
-    --ring: 221 83% 53%;
-    --chart-1: 221 83% 53%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+
+    --border: 30 20% 85%;
+    --input: 30 20% 85%;
+    --ring: 15 70% 62%;
+
     --radius: 0.5rem;
-    --sidebar-background: 210 40% 99%;
-    --sidebar-foreground: 215 28% 17%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 40% 94%;
-    --sidebar-accent-foreground: 222 47% 11.2%;
-    --sidebar-border: 214 32% 91.4%;
-    --sidebar-ring: 221 83% 53%;
   }
+
   .dark {
-    --background: 222 47% 11.2%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11.2%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11.2%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222 47% 11.2%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 25% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --background: 240 6% 10%; /* Dark background */
+    --foreground: 30 50% 95%; /* Light Beige text */
+    
+    --card: 240 6% 15%;
+    --card-foreground: 30 50% 95%;
+
+    --popover: 240 6% 10%;
+    --popover-foreground: 30 50% 95%;
+
+    --primary: 15 70% 62%; /* Terracotta remains vibrant */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 6% 25%; /* Muted Teal */
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 6% 20%;
+    --muted-foreground: 30 25% 70%;
+
+    --accent: 15 70% 62%; /* Use Terracotta as accent in dark mode */
+    --accent-foreground: 0 0% 100%;
+    
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 210 40% 98%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 222 47% 11.2%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 210 40% 98%;
-    --sidebar-primary-foreground: 222 47% 11.2%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 210 40% 98%;
+
+    --border: 240 6% 20%;
+    --input: 240 6% 20%;
+    --ring: 15 70% 62%;
   }
 }
 

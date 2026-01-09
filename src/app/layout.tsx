@@ -5,6 +5,13 @@ import { Footer } from '@/components/layout/footer';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { PT_Sans } from 'next/font/google';
+
+const ptSans = PT_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-pt-sans',
+});
 
 export const metadata: Metadata = {
   title: 'Tlapaleria los Pinos',
@@ -20,7 +27,7 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <head>
       </head>
-      <body className="font-body antialiased">
+      <body className={`${ptSans.variable} font-body antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

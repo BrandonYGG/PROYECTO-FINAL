@@ -101,7 +101,7 @@ export default function NewOrderPage() {
       postalCode: '',
       state: '',
       municipality: '',
-      materials: [{ name: '', quantity: '' as any }],
+      materials: [{ name: '', quantity: 0 }],
       deliveryDates: {
         from: undefined,
         to: undefined
@@ -556,10 +556,10 @@ export default function NewOrderPage() {
                         name={`materials.${index}.name`}
                         render={({ field }) => (
                           <FormItem className="md:col-span-3">
-                            <FormLabel>Material</FormLabel>
+                            <FormLabel htmlFor={`materials.${index}.name`}>Material</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger id={`materials.${index}.name`}>
                                   <SelectValue placeholder="Selecciona" />
                                 </SelectTrigger>
                               </FormControl>
@@ -575,8 +575,9 @@ export default function NewOrderPage() {
                       />
 
                       <div className="space-y-2 md:col-span-2">
-                          <Label>P. Unitario</Label>
-                          <Input 
+                          <Label htmlFor={`unit-price-${index}`}>P. Unitario</Label>
+                          <Input
+                            id={`unit-price-${index}`}
                             readOnly 
                             value={selectedMaterialInfo ? `$${selectedMaterialInfo.price.toFixed(2)} / ${selectedMaterialInfo.unit}`: '$0.00'} 
                             className="bg-muted"
@@ -605,8 +606,9 @@ export default function NewOrderPage() {
                       />
                       
                       <div className="space-y-2 md:col-span-2">
-                          <Label>Subtotal</Label>
-                          <Input 
+                          <Label htmlFor={`subtotal-${index}`}>Subtotal</Label>
+                          <Input
+                            id={`subtotal-${index}`}
                             readOnly 
                             value={`$${subtotal.toFixed(2)}`} 
                             className="bg-muted font-bold"
@@ -617,6 +619,7 @@ export default function NewOrderPage() {
                          <div className="md:col-span-1">
                           <Button variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:bg-destructive/10">
                             <Trash2 className="h-5 w-5" />
+                            <span className="sr-only">Eliminar material</span>
                           </Button>
                         </div>
                       )}
@@ -627,7 +630,7 @@ export default function NewOrderPage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => append({ name: '', quantity: '' as any })}
+                  onClick={() => append({ name: '', quantity: 0 })}
                   className="w-full md:w-auto"
                 >
                   <Plus className="mr-2 h-4 w-4" />
@@ -637,8 +640,9 @@ export default function NewOrderPage() {
                 {watchMaterials.length > 0 && (
                    <div className="flex justify-end pt-4">
                       <div className="w-full md:w-1/3">
-                          <Label className="text-lg font-semibold">Total del Pedido</Label>
-                          <Input 
+                          <Label className="text-lg font-semibold" htmlFor="total-order">Total del Pedido</Label>
+                          <Input
+                            id="total-order"
                             readOnly 
                             value={`$${total.toFixed(2)}`} 
                             className="bg-muted font-bold text-2xl h-12 mt-2"

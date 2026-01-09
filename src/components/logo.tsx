@@ -13,7 +13,7 @@ export function Logo() {
   const href = user && pathname === '/profile' ? '#' : (user ? '/profile' : '/');
 
   return (
-    <Link href={href} className="flex items-center gap-2">
+    <Link href={href} className="flex items-center gap-2" aria-label="Ir a la página de inicio">
       <HardHat className="h-7 w-7 text-primary" />
       <span className="text-xl font-bold font-headline tracking-tighter">
         Tlapaleria los Pinos

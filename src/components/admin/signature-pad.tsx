@@ -5,6 +5,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
 
 interface SignaturePadProps {
   onSave: (signature: string) => void;
@@ -36,11 +37,13 @@ export default function SignaturePad({ onSave }: SignaturePadProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      <Label htmlFor="signature-canvas">Área de Firma</Label>
       <div className="rounded-lg border bg-background relative w-full h-48">
         <SignatureCanvas
           ref={sigPadRef}
           penColor="black"
           canvasProps={{
+            id: 'signature-canvas',
             className: 'w-full h-full rounded-lg',
           }}
         />
