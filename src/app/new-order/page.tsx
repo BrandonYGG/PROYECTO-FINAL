@@ -76,7 +76,6 @@ export default function NewOrderPage() {
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [deliveryAnalysis, setDeliveryAnalysis] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
@@ -121,7 +120,6 @@ export default function NewOrderPage() {
   }, [user, isUserLoading, router]);
 
   const watchMaterials = form.watch('materials');
-  const deliveryDates = form.watch('deliveryDates');
   const watchState = form.watch('state');
 
   const total = watchMaterials.reduce((acc, current) => {
@@ -130,32 +128,6 @@ export default function NewOrderPage() {
     const quantity = Number(current.quantity) || 0;
     return acc + (price * quantity);
   }, 0);
-
-
-  useEffect(() => {
-    const handleAnalysis = async () => {
-      if (deliveryDates.from && deliveryDates.to) {
-        setIsAnalyzing(true);
-        setDeliveryAnalysis(null);
-        try {
-          const result = await analyzeDeliveryDate({
-            startDate: deliveryDates.from.toISOString(),
-            endDate: deliveryDates.to.toISOString(),
-          });
-          setDeliveryAnalysis(result.priority);
-        } catch (error) {
-          console.error("Error analyzing date:", error);
-          setDeliveryAnalysis("No se pudo analizar la fecha.");
-        } finally {
-          setIsAnalyzing(false);
-        }
-      } else {
-        setDeliveryAnalysis(null);
-      }
-    };
-
-    handleAnalysis();
-  }, [deliveryDates.from, deliveryDates.to]);
 
 
   const handleStateChange = (stateName: string) => {
@@ -172,22 +144,36 @@ export default function NewOrderPage() {
 
 
   async function handleInitialSubmit(values: OrderFormData) {
-    if (!user || !firestore || !deliveryAnalysis) return;
+    if (!user || !firestore) return;
     setIsSubmitting(true);
-    setLastSubmittedData(values); // Guardar los datos del formulario
+    setLastSubmittedData(values); 
 
     try {
+      const { from, to } = values.deliveryDates;
+      if (!from || !to) {
+        throw new Error("Las fechas de entrega son requeridas.");
+      }
+
+      // 1. Analizar la prioridad del pedido
+      const analysisResult = await analyzeDeliveryDate({
+        startDate: from.toISOString(),
+        endDate: to.toISOString(),
+      });
+      setDeliveryAnalysis(analysisResult.priority);
+
+      // 2. Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
       const location = await geocodeAddress({ address: fullAddress });
+      
       setGeocodedLocation(location);
-      setIsLocationConfirmed(false); // Reset confirmation on new submit
-      setIsConfirmingLocation(true); // Abrir el modal de confirmación
-    } catch(err) {
-        console.error("Geocoding failed:", err);
+      setIsLocationConfirmed(false); 
+      setIsConfirmingLocation(true); 
+    } catch(err: any) {
+        console.error("Error during initial submission:", err);
         toast({
             variant: "destructive",
-            title: "Error de Dirección",
-            description: "No se pudo encontrar la dirección proporcionada. Por favor, verifica los datos.",
+            title: "Error en la Verificación",
+            description: err.message || "No se pudo procesar la solicitud. Por favor, revisa los datos.",
         });
     } finally {
       setIsSubmitting(false);
@@ -215,8 +201,6 @@ export default function NewOrderPage() {
         await Promise.all(notificationPromises);
     } catch (error) {
         console.error("Error al notificar a los administradores:", error);
-        // Opcional: mostrar un toast al usuario si la notificación a los admins falla,
-        // aunque el pedido del usuario se haya creado correctamente.
     }
 };
 
@@ -243,7 +227,6 @@ export default function NewOrderPage() {
     addDoc(ordersCollectionRef, orderData)
       .then(async (docRef) => {
 
-        // Notificar a los administradores del nuevo pedido
         await notifyAdmins({ id: docRef.id, ...orderData });
 
         toast({
@@ -734,25 +717,13 @@ export default function NewOrderPage() {
                     <FormDescription>
                         Define el periodo en el que puedes recibir el material.
                     </FormDescription>
-                    {isAnalyzing && (
-                      <div className="flex items-center text-sm text-muted-foreground mt-2">
-                        <BrainCircuit className="mr-2 h-4 w-4 animate-pulse" />
-                        Analizando prioridad...
-                      </div>
-                    )}
-                    {deliveryAnalysis && !isAnalyzing && (
-                       <div className="flex items-center text-sm font-medium mt-2">
-                        <BrainCircuit className="mr-2 h-4 w-4 text-primary" />
-                        Prioridad del pedido: <span className="ml-1 font-bold">{deliveryAnalysis}</span>
-                      </div>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
               <div className="flex justify-end pt-4">
-                  <Button size="lg" type="submit" disabled={!form.formState.isValid || isSubmitting || !deliveryAnalysis}>
+                  <Button size="lg" type="submit" disabled={!form.formState.isValid || isSubmitting}>
                       {isSubmitting ? (
                           <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -785,6 +756,14 @@ export default function NewOrderPage() {
                       onLocationChange={(newCoords) => setGeocodedLocation(newCoords)}
                   />
               </div>
+              
+              {deliveryAnalysis && (
+                <div className="flex items-center text-sm font-medium my-4 p-3 rounded-lg bg-primary/10">
+                    <BrainCircuit className="mr-3 h-5 w-5 text-primary" />
+                    Prioridad de Entrega Calculada: <span className="ml-1 font-bold">{deliveryAnalysis}</span>
+                </div>
+              )}
+
 
                <div className="flex items-center space-x-2 my-4">
                 <Checkbox id="location-confirm" checked={isLocationConfirmed} onCheckedChange={(checked) => setIsLocationConfirmed(checked as boolean)} />
@@ -844,3 +823,4 @@ export default function NewOrderPage() {
 }
 
     
+
