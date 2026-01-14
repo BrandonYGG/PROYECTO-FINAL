@@ -7,26 +7,26 @@
       "imageHint": "construction sunset"
     },
     {
-      "id": "cement",
-      "description": "Bags of cement stacked on a pallet",
-      "imageUrl": "https://images.unsplash.com/photo-1728026462560-91b60aac93b9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjZW1lbnQlMjBiYWdzfGVufDB8fHx8MTc2MzkyNTg1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "id": "cemento",
+      "description": "Bolsas de cemento gris de alta resistencia, ideales para cimientos y estructuras robustas.",
+      "imageUrl": "https://images.unsplash.com/photo-1542856452-30df65b63198?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       "imageHint": "cement bags"
     },
     {
-      "id": "bricks",
-      "description": "A pallet of red bricks",
+      "id": "ladrillo",
+      "description": "Ladrillos rojos recocidos de primera calidad, perfectos para muros y fachadas con un acabado tradicional.",
       "imageUrl": "https://images.unsplash.com/photo-1584505192555-4feb7834358a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWQlMjBicmlja3N8ZW58MHx8fHwxNzYzODE4ODI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "red bricks"
     },
     {
-      "id": "rebar",
-      "description": "A bundle of steel rebar",
-      "imageUrl": "https://images.unsplash.com/photo-1763771420583-ff167240e281?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzdGVlbCUyMHJlYmFyfGVufDB8fHx8MTc2MzkyNTg1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "id": "varilla",
+      "description": "Varillas de acero corrugado para refuerzo de concreto, disponibles en diferentes grosores y longitudes.",
+      "imageUrl": "https://images.unsplash.com/photo-1590215986820-e4484042e6a9?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       "imageHint": "steel rebar"
     },
     {
-      "id": "wood",
-      "description": "Stacks of lumber",
+      "id": "madera",
+      "description": "Tablones y vigas de madera de pino tratada, listos para estructuras, cimbras y acabados.",
       "imageUrl": "https://images.unsplash.com/photo-1651990766796-b56814ad40b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxsdW1iZXIlMjB3b29kfGVufDB8fHx8MTc2MzkyNTg1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "lumber wood"
     }

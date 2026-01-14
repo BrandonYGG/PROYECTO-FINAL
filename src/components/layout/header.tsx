@@ -4,7 +4,7 @@ import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeToggle } from '../theme-toggle';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Package } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -24,6 +24,11 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Logo />
+        <nav className="hidden md:flex items-center gap-4">
+            <Button variant="ghost" asChild>
+                <Link href="/products">Productos</Link>
+            </Button>
+        </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {user ? (
