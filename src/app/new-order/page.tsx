@@ -11,13 +11,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin, Info, Locate } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin, Locate } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-import { analyzeDeliveryDate } from "@/ai/flows/analyze-delivery-date-flow";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
 import { addDoc, collection, serverTimestamp, query, where, getDocs } from "firebase/firestore";
@@ -26,7 +25,6 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { DeliveryMap } from "@/components/maps/delivery-map";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { reverseGeocode } from "../actions/reverse-geocode-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -67,6 +65,26 @@ const materialsList: Material[] = [
   { name: "cal", price: 80, unit: "bulto" },
   { name: "alambre", price: 15, unit: "kg" },
 ];
+
+function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar la hora para comparar solo fechas
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const diffTime = start.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 3) {
+        return 'Urgente';
+    } else if (diffDays <= 7) {
+        return 'Pronto';
+    } else {
+        return 'Normal';
+    }
+}
+
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -150,17 +168,14 @@ export default function NewOrderPage() {
     setLastSubmittedData(values); 
 
     try {
-      const { from, to } = values.deliveryDates;
-      if (!from || !to) {
-        throw new Error("Las fechas de entrega son requeridas.");
+      const { from } = values.deliveryDates;
+      if (!from) {
+        throw new Error("La fecha de inicio de entrega es requerida.");
       }
 
-      // 1. Analizar la prioridad del pedido
-      const analysisResult = await analyzeDeliveryDate({
-        startDate: from.toISOString(),
-        endDate: to.toISOString(),
-      });
-      setCalculatedPriority(analysisResult.priority);
+      // 1. Calcular la prioridad del pedido
+      const priority = getPriorityFromDate(from);
+      setCalculatedPriority(priority);
 
       // 2. Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
@@ -836,11 +851,3 @@ export default function NewOrderPage() {
     </div>
   );
 }
-
-    
-
-
-
-
-
-    
