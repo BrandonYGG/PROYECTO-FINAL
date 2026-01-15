@@ -304,10 +304,24 @@ export default function NewOrderPage() {
         },
         (error) => {
           console.error("Error getting current location:", error);
+          let title = "Error de Ubicación";
+          let description = "No se pudo obtener tu ubicación actual.";
+          switch (error.code) {
+              case error.PERMISSION_DENIED:
+                  description = "Has denegado el permiso de ubicación. Actívalo en los ajustes de tu navegador.";
+                  break;
+              case error.POSITION_UNAVAILABLE:
+                  description = "La información de ubicación no está disponible en este momento.";
+                  break;
+              case error.TIMEOUT:
+                  title = "Tiempo de Espera Agotado";
+                  description = "La solicitud para obtener la ubicación ha tardado demasiado. Inténtalo de nuevo.";
+                  break;
+          }
           toast({
-            variant: "destructive",
-            title: "Error de Ubicación",
-            description: "No se pudo obtener tu ubicación actual. Asegúrate de haber concedido los permisos.",
+              variant: "destructive",
+              title: title,
+              description: description,
           });
           setIsGettingLocation(false);
         },
@@ -823,5 +837,6 @@ export default function NewOrderPage() {
 }
 
     
+
 
 
