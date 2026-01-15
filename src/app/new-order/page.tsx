@@ -75,8 +75,8 @@ export default function NewOrderPage() {
   const { toast } = useToast();
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [deliveryAnalysis, setDeliveryAnalysis] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
 
@@ -84,6 +84,7 @@ export default function NewOrderPage() {
   const [isConfirmingLocation, setIsConfirmingLocation] = useState(false);
   const [geocodedLocation, setGeocodedLocation] = useState<{lat: number, lng: number} | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<OrderFormData | null>(null);
+  const [calculatedPriority, setCalculatedPriority] = useState<string | null>(null);
   const [isLocationConfirmed, setIsLocationConfirmed] = useState(false);
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
@@ -145,7 +146,7 @@ export default function NewOrderPage() {
 
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
-    setIsSubmitting(true);
+    setIsProcessing(true);
     setLastSubmittedData(values); 
 
     try {
@@ -159,7 +160,7 @@ export default function NewOrderPage() {
         startDate: from.toISOString(),
         endDate: to.toISOString(),
       });
-      setDeliveryAnalysis(analysisResult.priority);
+      setCalculatedPriority(analysisResult.priority);
 
       // 2. Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
@@ -176,7 +177,7 @@ export default function NewOrderPage() {
             description: err.message || "No se pudo procesar la solicitud. Por favor, revisa los datos.",
         });
     } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
     }
   }
 
@@ -205,7 +206,7 @@ export default function NewOrderPage() {
 };
 
   const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
-    if (!user || !firestore || !deliveryAnalysis || !lastSubmittedData) return;
+    if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
     setIsSubmitting(true);
     
     const orderData = { 
@@ -213,7 +214,7 @@ export default function NewOrderPage() {
       location: confirmedLocation,
       total,
       userId: user.uid,
-      priority: deliveryAnalysis,
+      priority: calculatedPriority,
       status: 'Pendiente',
       createdAt: serverTimestamp(),
       deliveryDates: {
@@ -737,8 +738,8 @@ export default function NewOrderPage() {
               />
 
               <div className="flex justify-end pt-4">
-                  <Button size="lg" type="submit" disabled={!form.formState.isValid || isSubmitting}>
-                      {isSubmitting ? (
+                  <Button size="lg" type="submit" disabled={!form.formState.isValid || isProcessing}>
+                      {isProcessing ? (
                           <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Verificando...
@@ -771,10 +772,10 @@ export default function NewOrderPage() {
                   />
               </div>
               
-              {deliveryAnalysis && (
+              {calculatedPriority && (
                 <div className="flex items-center text-sm font-medium my-4 p-3 rounded-lg bg-primary/10">
                     <BrainCircuit className="mr-3 h-5 w-5 text-primary" />
-                    Prioridad de Entrega Calculada: <span className="ml-1 font-bold">{deliveryAnalysis}</span>
+                    Prioridad de Entrega Calculada: <span className="ml-1 font-bold">{calculatedPriority}</span>
                 </div>
               )}
 
@@ -840,3 +841,6 @@ export default function NewOrderPage() {
 
 
 
+
+
+    
