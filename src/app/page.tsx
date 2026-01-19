@@ -27,7 +27,7 @@ const whyChooseUs = [
   {
     icon: <BrainCircuit className="h-10 w-10 text-primary" />,
     title: 'Logística Optimizada',
-    description: 'Nuestro sistema de gestión optimiza las rutas y tiempos de entrega para una logística eficiente y puntual.',
+    description: 'Nuestro sistema de gestión asegura una entrega eficiente y puntual de tus materiales.',
   },
 ];
 
