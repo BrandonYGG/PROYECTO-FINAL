@@ -68,7 +68,7 @@ const materialsList: Material[] = [
 
 function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalizar la hora para comparar solo fechas
+    today.setHours(0, 0, 0, 0); 
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -98,7 +98,6 @@ export default function NewOrderPage() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
 
-  // Estados para el modal de confirmación de ubicación
   const [isConfirmingLocation, setIsConfirmingLocation] = useState(false);
   const [geocodedLocation, setGeocodedLocation] = useState<{lat: number, lng: number} | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<OrderFormData | null>(null);
@@ -152,7 +151,7 @@ export default function NewOrderPage() {
   const handleStateChange = (stateName: string) => {
     const stateData = mexicoStates.find(s => s.nombre === stateName) || null;
     setSelectedState(stateData);
-    form.setValue('municipality', ''); // Reset municipality on state change
+    form.setValue('municipality', ''); 
   };
 
   useEffect(() => {
@@ -173,11 +172,9 @@ export default function NewOrderPage() {
         throw new Error("La fecha de inicio de entrega es requerida.");
       }
 
-      // 1. Calcular la prioridad del pedido
       const priority = getPriorityFromDate(from);
       setCalculatedPriority(priority);
 
-      // 2. Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
       const location = await geocodeAddress({ address: fullAddress });
       
@@ -252,19 +249,11 @@ export default function NewOrderPage() {
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
       })
       .catch((error) => {
-        console.error("Error al guardar el pedido:", error);
-        
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: ordersCollectionRef.path,
             operation: 'create',
             requestResourceData: orderData
         }));
-
-        toast({
-            variant: "destructive",
-            title: "Error al enviar el pedido",
-            description: "No se pudo guardar tu pedido. Por favor, revisa tus permisos e intenta de nuevo.",
-        });
       })
       .finally(() => {
         setIsSubmitting(false);
