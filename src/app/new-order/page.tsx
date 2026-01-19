@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin, Locate } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -68,7 +68,7 @@ const materialsList: Material[] = [
 
 function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); 
+    today.setHours(0, 0, 0, 0); // Normalizar la hora para comparar solo fechas
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -95,9 +95,9 @@ export default function NewOrderPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
 
+  // Estados para el modal de confirmación de ubicación
   const [isConfirmingLocation, setIsConfirmingLocation] = useState(false);
   const [geocodedLocation, setGeocodedLocation] = useState<{lat: number, lng: number} | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<OrderFormData | null>(null);
@@ -151,7 +151,7 @@ export default function NewOrderPage() {
   const handleStateChange = (stateName: string) => {
     const stateData = mexicoStates.find(s => s.nombre === stateName) || null;
     setSelectedState(stateData);
-    form.setValue('municipality', ''); 
+    form.setValue('municipality', ''); // Reset municipality on state change
   };
 
   useEffect(() => {
@@ -172,9 +172,11 @@ export default function NewOrderPage() {
         throw new Error("La fecha de inicio de entrega es requerida.");
       }
 
+      // 1. Calcular la prioridad del pedido
       const priority = getPriorityFromDate(from);
       setCalculatedPriority(priority);
 
+      // 2. Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
       const location = await geocodeAddress({ address: fullAddress });
       
@@ -249,6 +251,8 @@ export default function NewOrderPage() {
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
       })
       .catch((error) => {
+        console.error("Error al guardar el pedido:", error);
+        
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: ordersCollectionRef.path,
             operation: 'create',
@@ -260,87 +264,6 @@ export default function NewOrderPage() {
         setIsConfirmingLocation(false);
       });
   }
-
-  const handleUseCurrentLocation = () => {
-    if ("geolocation" in navigator) {
-      setIsGettingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude, accuracy } = position.coords;
-          const ACCEPTABLE_ACCURACY_METERS = 100;
-
-          if (accuracy > ACCEPTABLE_ACCURACY_METERS) {
-            toast({
-              variant: "destructive",
-              title: "Ubicación Poco Precisa",
-              description: `La precisión actual (${Math.round(accuracy)}m) es muy baja. Intenta de nuevo en un lugar con mejor señal o ingresa la dirección manualmente.`,
-              duration: 5000,
-            });
-            setIsGettingLocation(false);
-            return;
-          }
-
-          const coords = { lat: latitude, lng: longitude };
-          try {
-            const address = await reverseGeocode(coords);
-            form.setValue('street', `${address.street}`);
-            form.setValue('number', `${address.number}`);
-            form.setValue('colony', address.colony);
-            form.setValue('postalCode', address.postalCode);
-            form.setValue('state', address.state);
-            form.setValue('municipality', address.municipality);
-
-            form.trigger(['street', 'number', 'colony', 'postalCode', 'state', 'municipality']);
-
-            toast({
-              title: "Ubicación Obtenida",
-              description: "Los campos de dirección han sido actualizados.",
-            });
-          } catch (error) {
-            console.error("Error reverse geocoding:", error);
-            toast({
-              variant: "destructive",
-              title: "Error de Dirección",
-              description: "No se pudo obtener la dirección desde tu ubicación.",
-            });
-          } finally {
-            setIsGettingLocation(false);
-          }
-        },
-        (error) => {
-          console.error("Error getting current location:", error);
-          let title = "Error de Ubicación";
-          let description = "No se pudo obtener tu ubicación actual.";
-          switch (error.code) {
-              case error.PERMISSION_DENIED:
-                  description = "Has denegado el permiso de ubicación. Actívalo en los ajustes de tu navegador.";
-                  break;
-              case error.POSITION_UNAVAILABLE:
-                  description = "La información de ubicación no está disponible en este momento.";
-                  break;
-              case error.TIMEOUT:
-                  title = "Tiempo de Espera Agotado";
-                  description = "La solicitud para obtener la ubicación ha tardado demasiado. Inténtalo de nuevo.";
-                  break;
-          }
-          toast({
-              variant: "destructive",
-              title: title,
-              description: description,
-          });
-          setIsGettingLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Navegador no compatible",
-        description: "Tu navegador no soporta la geolocalización.",
-      });
-    }
-  };
-
 
   const isCdmx = selectedState?.nombre === 'Ciudad de México';
 
@@ -408,14 +331,6 @@ export default function NewOrderPage() {
 
               <div className="flex justify-between items-center border-b pb-2 pt-4">
                 <h3 className="text-lg font-semibold">Dirección de Entrega</h3>
-                 <Button type="button" variant="outline" size="sm" onClick={handleUseCurrentLocation} disabled={isGettingLocation}>
-                    {isGettingLocation ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                    ) : (
-                        <Locate className="mr-2 h-4 w-4"/>
-                    )}
-                    Usar mi ubicación
-                </Button>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -791,41 +706,7 @@ export default function NewOrderPage() {
                 </Label>
               </div>
 
-              <DialogFooter className="sm:justify-between items-center gap-2">
-                 <Button 
-                    variant="outline"
-                    onClick={() => {
-                        if ("geolocation" in navigator) {
-                            navigator.geolocation.getCurrentPosition(
-                                (position) => {
-                                    const newCoords = {
-                                        lat: position.coords.latitude,
-                                        lng: position.coords.longitude
-                                    };
-                                    setGeocodedLocation(newCoords); // Actualiza la ubicación en el mapa
-                                },
-                                (error) => {
-                                    console.error("Error getting current location:", error);
-                                    toast({
-                                        variant: "destructive",
-                                        title: "Error de Ubicación",
-                                        description: "No se pudo obtener tu ubicación actual. Asegúrate de haber concedido los permisos.",
-                                    });
-                                },
-                                { enableHighAccuracy: true }
-                            );
-                        } else {
-                            toast({
-                                variant: "destructive",
-                                title: "Navegador no compatible",
-                                description: "Tu navegador no soporta la geolocalización.",
-                            });
-                        }
-                    }}
-                >
-                    <LocateFixed className="mr-2 h-4 w-4"/>
-                    Usar mi Ubicación
-                </Button>
+              <DialogFooter>
                 <Button 
                   onClick={() => handleLocationConfirmation(geocodedLocation!)} 
                   disabled={isSubmitting || !geocodedLocation || !isLocationConfirmed}
