@@ -26,8 +26,8 @@ const whyChooseUs = [
   },
   {
     icon: <BrainCircuit className="h-10 w-10 text-primary" />,
-    title: 'Análisis Inteligente',
-    description: 'Nuestra IA optimiza la logística para asegurar que tus materiales lleguen justo cuando los necesitas.',
+    title: 'Logística Optimizada',
+    description: 'Nuestro sistema de gestión optimiza las rutas y tiempos de entrega para una logística eficiente y puntual.',
   },
 ];
 
