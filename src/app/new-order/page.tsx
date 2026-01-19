@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin, Locate } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -19,13 +19,12 @@ import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { DeliveryMap } from "@/components/maps/delivery-map";
-import { reverseGeocode } from "../actions/reverse-geocode-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 
 
@@ -195,29 +194,6 @@ export default function NewOrderPage() {
     }
   }
 
-  const notifyAdmins = async (order: any) => {
-    if (!firestore) return;
-    try {
-        const adminsQuery = query(collection(firestore, 'users'), where('userType', '==', 'admin'));
-        const adminSnapshot = await getDocs(adminsQuery);
-        
-        const notificationPromises = adminSnapshot.docs.map(adminDoc => {
-            const adminId = adminDoc.id;
-            const notificationRef = collection(firestore, 'users', adminId, 'notifications');
-            return addDoc(notificationRef, {
-                userId: adminId,
-                orderId: order.id,
-                message: `Se ha recibido un nuevo pedido para la obra "${order.projectName}".`,
-                read: false,
-                createdAt: serverTimestamp(),
-            });
-        });
-
-        await Promise.all(notificationPromises);
-    } catch (error) {
-        console.error("Error al notificar a los administradores:", error);
-    }
-};
 
   const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
     if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
@@ -241,12 +217,9 @@ export default function NewOrderPage() {
     
     addDoc(ordersCollectionRef, orderData)
       .then(async (docRef) => {
-
-        await notifyAdmins({ id: docRef.id, ...orderData });
-
         toast({
             title: "Pedido Enviado",
-            description: "Tu pedido se ha guardado correctamente y los administradores han sido notificados.",
+            description: "Tu pedido se ha guardado correctamente.",
         });
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
       })
@@ -258,6 +231,12 @@ export default function NewOrderPage() {
             operation: 'create',
             requestResourceData: orderData
         }));
+
+        toast({
+            variant: "destructive",
+            title: "Error al enviar el pedido",
+            description: "No se pudo guardar tu pedido. Por favor, revisa tus permisos e intenta de nuevo.",
+        });
       })
       .finally(() => {
         setIsSubmitting(false);
