@@ -94,6 +94,7 @@ export default function NewOrderPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
 
   // Estados para el modal de confirmación de ubicación
@@ -129,6 +130,10 @@ export default function NewOrderPage() {
     control: form.control,
     name: "materials"
   });
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -226,11 +231,13 @@ export default function NewOrderPage() {
       .catch((error) => {
         console.error("Error al guardar el pedido:", error);
         
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
+        const contextualError = new FirestorePermissionError({
             path: ordersCollectionRef.path,
             operation: 'create',
             requestResourceData: orderData
-        }));
+        });
+        
+        errorEmitter.emit('permission-error', contextualError);
 
         toast({
             variant: "destructive",
@@ -600,7 +607,7 @@ export default function NewOrderPage() {
                             numberOfMonths={2}
                             locale={es}
                             className="p-4"
-                            disabled={{ before: new Date() }}
+                            disabled={isMounted ? { before: new Date() } : { before: new Date('1970-01-01')}}
                           />
                           <div className="w-full mt-4 p-4 border-t">
                             <h4 className="text-sm font-semibold mb-2">Simbología</h4>
