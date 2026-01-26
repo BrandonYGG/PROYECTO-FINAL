@@ -1,5 +1,13 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
 export function Footer() {
-  const currentYear = new Date().getFullYear();
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
 
   return (
     <footer className="border-t bg-background">
