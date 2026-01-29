@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin, Locate } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { DeliveryMap } from "@/components/maps/delivery-map";
 import { Checkbox } from "@/components/ui/checkbox";
+import { materialsList } from "@/lib/materials";
 
 
 const materialOrderSchema = z.object({
@@ -51,19 +52,6 @@ const orderSchema = z.object({
 });
 
 type OrderFormData = z.infer<typeof orderSchema>;
-
-type Material = {
-  name: string;
-  price: number;
-  unit: string;
-};
-
-const materialsList: Material[] = [
-  { name: "cemento", price: 250, unit: "bulto" },
-  { name: "mortero", price: 220, unit: "bulto" },
-  { name: "cal", price: 80, unit: "bulto" },
-  { name: "alambre", price: 15, unit: "kg" },
-];
 
 function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     const today = new Date();

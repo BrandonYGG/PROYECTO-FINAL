@@ -19,6 +19,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { DeliveryMap } from '@/components/maps/delivery-map';
 import { Badge } from '@/components/ui/badge';
+import { materialsList } from '@/lib/materials';
 
 
 // Aumenta jsPDF con el método autoTable
@@ -27,13 +28,6 @@ declare module 'jspdf' {
     autoTable: (options: any) => jsPDF;
   }
 }
-
-const materialsList = [
-  { name: "cemento", price: 250, unit: "bulto" },
-  { name: "mortero", price: 220, unit: "bulto" },
-  { name: "cal", price: 80, unit: "bulto" },
-  { name: "alambre", price: 15, unit: "kg" },
-];
 
 const statusConfig = {
     'Pendiente': { title: '¡Pedido Recibido!', description: 'Hemos recibido tu pedido y lo estamos procesando.', icon: <CircleHelp className="h-12 w-12 text-gray-500" />, color: 'text-gray-500' },

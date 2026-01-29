@@ -1,25 +1,12 @@
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-
-const materialsList = [
-    { name: "cemento", price: 250, unit: "bulto" },
-    { name: "mortero", price: 220, unit: "bulto" },
-    { name: "cal", price: 80, unit: "bulto" },
-    { name: "alambre", price: 15, unit: "kg" },
-    { name: "ladrillo", price: 5, unit: "pieza" },
-    { name: "varilla", price: 150, unit: "pieza" },
-    { name: "arena", price: 800, unit: "m³" },
-    { name: "grava", price: 900, unit: "m³" },
-  ];
+import { productCatalog } from '@/lib/materials';
 
 export default function ProductsPage() {
-
-  const productImages = PlaceHolderImages.filter(img => img.id !== 'hero');
-
   return (
     <div className="container mx-auto py-12 px-4 animate-fade-in">
       <div className="text-center mb-16">
@@ -29,36 +16,52 @@ export default function ProductsPage() {
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {productImages.map((product, index) => {
-          const materialInfo = materialsList.find(m => product.id.includes(m.name));
+        {productCatalog.map((product, index) => {
+          const productImage = PlaceHolderImages.find(img => img.id === product.productName.toLowerCase().replace(' ', '-'));
+          const description = productImage?.description || `Material de construcción: ${product.productName}`;
+
           return (
             <Card 
-              key={product.id} 
+              key={product.productName} 
               className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
               style={{ animationDelay: `${100 * (index + 1)}ms` }}
             >
-              <CardHeader className="p-0 relative">
-                <Image
-                  src={product.imageUrl}
-                  alt={product.description}
-                  width={400}
-                  height={300}
-                  className="object-cover w-full h-48"
-                  data-ai-hint={product.imageHint}
-                />
-                 {materialInfo && (
-                    <Badge className="absolute top-2 right-2 text-lg font-bold" variant="destructive">
-                      ${materialInfo.price} <span className='text-sm font-normal ml-1'>/{materialInfo.unit}</span>
-                    </Badge>
-                  )}
-              </CardHeader>
+              {productImage && (
+                <CardHeader className="p-0 relative">
+                  <Image
+                    src={productImage.imageUrl}
+                    alt={productImage.description}
+                    width={400}
+                    height={300}
+                    className="object-cover w-full h-48"
+                    data-ai-hint={productImage.imageHint}
+                  />
+                </CardHeader>
+              )}
               <CardContent className="p-6 flex flex-col flex-grow">
-                <CardTitle className="text-2xl font-bold capitalize font-headline">{product.id.replace('-', ' ')}</CardTitle>
-                <CardDescription className="mt-2 flex-grow">{product.description}</CardDescription>
-                <Button asChild className="mt-4 w-full">
-                    <Link href="/new-order">Hacer Pedido</Link>
-                </Button>
+                <CardTitle className="text-2xl font-bold capitalize font-headline">{product.productName}</CardTitle>
+                <CardDescription className="mt-2 flex-grow">{description}</CardDescription>
+                
+                <div className='mt-4 flex-grow space-y-2'>
+                  <p className='text-sm font-semibold text-muted-foreground'>Presentaciones:</p>
+                  {product.variants.map(variant => (
+                    <div key={variant.name} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-muted/50">
+                      <span className='capitalize font-medium'>{variant.unit}</span>
+                      <Badge variant={variant.deliverable ? "secondary" : "outline"}>
+                        ${variant.price.toFixed(2)}
+                      </Badge>
+                    </div>
+                  ))}
+                  {product.variants.some(v => v.notes) && (
+                    <p className="text-xs text-amber-600 mt-2 p-1 bg-amber-50 rounded-md border border-amber-200">{product.variants.find(v => v.notes)?.notes}</p>
+                  )}
+                </div>
               </CardContent>
+              <CardFooter>
+                 <Button asChild className="w-full">
+                    <Link href="/new-order">Hacer Pedido de Entrega</Link>
+                </Button>
+              </CardFooter>
             </Card>
           )
         })}

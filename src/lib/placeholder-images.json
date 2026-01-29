@@ -13,22 +13,46 @@
       "imageHint": "cement bags"
     },
     {
+      "id": "arena",
+      "description": "Arena fina para mezclas de construcción, aplanados y más.",
+      "imageUrl": "https://images.unsplash.com/photo-1593583264629-d58611832a76?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "construction sand"
+    },
+    {
+      "id": "grava",
+      "description": "Grava triturada de diferentes tamaños para concretos y bases.",
+      "imageUrl": "https://images.unsplash.com/photo-1619454018020-d3d64c093952?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "construction gravel"
+    },
+    {
+      "id": "mortero",
+      "description": "Mezcla de mortero lista para usar, ideal para unir ladrillos y bloques.",
+      "imageUrl": "https://images.unsplash.com/photo-1552895138-03b0a519655e?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "mortar trowel"
+    },
+    {
+      "id": "pega-azulejo",
+      "description": "Adhesivo de alta calidad para la instalación de azulejos y recubrimientos.",
+      "imageUrl": "https://plus.unsplash.com/premium_photo-1683140582295-35071168051a?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "tiling floor"
+    },
+    {
+      "id": "cemento-blanco",
+      "description": "Cemento blanco para acabados finos, juntas y detalles decorativos.",
+      "imageUrl": "https://images.unsplash.com/photo-1628972392398-3505c8c6f1a8?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "white powder"
+    },
+    {
       "id": "ladrillo",
-      "description": "Ladrillos rojos recocidos de primera calidad, perfectos para muros y fachadas con un acabado tradicional.",
+      "description": "Ladrillos rojos recocidos de primera calidad, perfectos para muros y fachadas.",
       "imageUrl": "https://images.unsplash.com/photo-1584505192555-4feb7834358a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWQlMjBicmlja3N8ZW58MHx8fHwxNzYzODE4ODI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "red bricks"
     },
     {
-      "id": "varilla",
-      "description": "Varillas de acero corrugado para refuerzo de concreto, disponibles en diferentes grosores y longitudes.",
-      "imageUrl": "https://images.unsplash.com/photo-1590215986820-e4484042e6a9?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-      "imageHint": "steel rebar"
-    },
-    {
-      "id": "madera",
-      "description": "Tablones y vigas de madera de pino tratada, listos para estructuras, cimbras y acabados.",
-      "imageUrl": "https://images.unsplash.com/photo-1651990766796-b56814ad40b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxsdW1iZXIlMjB3b29kfGVufDB8fHx8MTc2MzkyNTg1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "lumber wood"
+      "id": "piedra",
+      "description": "Piedra de río o de cantera para acabados, cimientos y decoración.",
+      "imageUrl": "https://images.unsplash.com/photo-1559827291-72ee739d0d95?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageHint": "river stones"
     }
   ]
 }

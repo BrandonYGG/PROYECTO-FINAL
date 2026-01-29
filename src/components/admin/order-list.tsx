@@ -48,19 +48,13 @@ import { useState, useEffect, useRef } from 'react';
 import { DeliveryMap } from '../maps/delivery-map';
 import SignaturePad from './signature-pad';
 import { Calendar } from '../ui/calendar';
+import { materialsList } from '@/lib/materials';
 
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
   }
 }
-
-const materialsList = [
-  { name: "cemento", price: 250, unit: "bulto" },
-  { name: "mortero", price: 220, unit: "bulto" },
-  { name: "cal", price: 80, unit: "bulto" },
-  { name: "alambre", price: 15, unit: "kg" },
-];
 
 type OrderStatus = 'Pendiente' | 'En proceso' | 'Enviado' | 'Entregado' | 'Cancelado';
 
@@ -717,6 +711,3 @@ export default function OrderList() {
     </Card>
   );
 }
-
-    
-    
