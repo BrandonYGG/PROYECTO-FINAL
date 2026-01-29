@@ -23,12 +23,7 @@ const whyChooseUs = [
     icon: <Truck className="h-10 w-10 text-primary" />,
     title: 'Logística Eficiente',
     description: 'Entregamos tus materiales a tiempo y en perfectas condiciones, directamente en tu obra, para que no te preocupes.',
-  },
-  {
-    icon: <BrainCircuit className="h-10 w-10 text-primary" />,
-    title: 'Logística Optimizada',
-    description: 'Nuestro sistema de gestión asegura una entrega eficiente y puntual de tus materiales.',
-  },
+  }
 ];
 
 const featuredQualities = [
@@ -97,7 +92,7 @@ export default function Home() {
               No solo vendemos materiales, construimos relaciones de confianza.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {whyChooseUs.map((reason, index) => (
               <Card
                 key={reason.title}
