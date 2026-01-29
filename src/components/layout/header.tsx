@@ -4,20 +4,21 @@ import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeToggle } from '../theme-toggle';
-import { User, LogOut, Package } from 'lucide-react';
+import { User, LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { NotificationBell } from './notification-bell';
 
 export function Header() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
 
   const handleLogout = () => {
-    signOut(auth);
-    router.push('/');
+    signOut(auth).then(() => {
+      router.push('/');
+    });
   };
 
   return (
@@ -31,7 +32,11 @@ export function Header() {
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          {user ? (
+          {isUserLoading ? (
+            <div className="flex items-center justify-center w-48">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : user ? (
             <>
               <NotificationBell />
               <Button variant="ghost" asChild>
