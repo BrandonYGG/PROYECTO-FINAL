@@ -1,6 +1,6 @@
 export type Material = {
-  name: string; // This will be the unique name in the dropdown, e.g., "Cemento (Tonelada)"
-  productName: string; // e.g., "Cemento"
+  name: string; // Este será el nombre único en el menú desplegable, ej., "Cemento (Tonelada)"
+  productName: string; // ej., "Cemento"
   price: number;
   unit: 'bulto' | 'tonelada' | 'media tonelada' | 'pieza' | 'kg' | 'm³';
   notes?: string;
@@ -37,18 +37,18 @@ export const allMaterials: Material[] = [
 ];
 
 /**
- * List of materials available for delivery, for use in the order form.
+ * Lista de materiales disponibles para entrega, para usar en el formulario de pedido.
  */
 export const materialsList: {name: string, price: number, unit: string}[] = allMaterials
   .filter(m => m.deliverable)
   .map(({ name, price, unit }) => {
-    // For single-unit products, don't append the unit to the name.
+    // Para productos de una sola unidad, no se agrega la unidad al nombre.
     const displayName = name.includes('(') || unit === 'pieza' ? name : `${name} (${unit})`;
     return { name: displayName, price, unit };
   });
 
 /**
- * A grouped catalog of all products for display on the products page.
+ * Un catálogo agrupado de todos los productos para mostrar en la página de productos.
  */
 export const productCatalog = allMaterials.reduce((acc, material) => {
     const existing = acc.find(p => p.productName === material.productName);
