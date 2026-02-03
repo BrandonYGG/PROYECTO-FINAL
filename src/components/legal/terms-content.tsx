@@ -29,14 +29,15 @@ export function TermsContent() {
                     Si creas una cuenta en nuestro sitio web, eres responsable de mantener la seguridad de tu cuenta y eres completamente responsable de todas las actividades que ocurran bajo la cuenta y cualquier otra acción tomada en conexión con ella.
                 </p>
 
-                <h2 className="text-2xl font-semibold mt-6 mb-4">4. Uso del Asistente Inteligente (Chatbot)</h2>
+                <h2 className="text-2xl font-semibold mt-6 mb-4">4. Uso del Asistente de Inteligencia Artificial</h2>
                 <p>
-                    Nuestro sitio web puede incluir un asistente inteligente (en adelante, "el Bot") diseñado para proporcionar información y asistencia. Usted reconoce y acepta que:
+                    El presente sitio web pone a disposición de los usuarios un asistente conversacional basado en inteligencia artificial (en lo sucesivo, "el Asistente"), cuyo propósito es ofrecer orientación e información general sobre nuestros productos y servicios. El usuario, al interactuar con el Asistente, reconoce y acepta de manera expresa las siguientes condiciones:
                 </p>
                 <ul>
-                    <li>El Bot es una herramienta de inteligencia artificial y sus respuestas pueden contener errores, imprecisiones u omisiones. La información proporcionada por el Bot se ofrece "tal cual", sin garantías de ningún tipo.</li>
-                    <li>La información y las sugerencias generadas por el Bot no constituyen asesoramiento profesional, técnico o definitivo. Usted no debe basar decisiones críticas, finales o de negocio únicamente en la información proporcionada por el Bot.</li>
-                    <li>Tlapaleria los Pinos no se hace responsable de ninguna pérdida, daño o perjuicio derivado de la confianza depositada en la información generada por el Bot. Es su responsabilidad verificar de forma independiente cualquier información antes de tomar decisiones basadas en ella.</li>
+                    <li><strong>Naturaleza y Fiabilidad de la Información:</strong> El Asistente es una herramienta automatizada cuya funcionalidad se basa en algoritmos y vastos conjuntos de datos. Debido a su naturaleza, las respuestas generadas pueden contener, de forma inherente, errores, imprecisiones u omisiones. Toda información proporcionada por el Asistente se entrega "tal cual" y "según disponibilidad", sin garantía explícita o implícita de su exactitud, exhaustividad o idoneidad para un propósito particular.</li>
+                    <li><strong>Ausencia de Asesoramiento Profesional:</strong> Las interacciones y la información emanada del Asistente no constituyen, bajo ninguna circunstancia, asesoramiento técnico, financiero, legal o de cualquier otra índole profesional que sea vinculante. Las sugerencias o datos ofrecidos son de carácter orientativo y no deben ser considerados como sustitutos de una consulta con un profesional debidamente cualificado.</li>
+                    <li><strong>Responsabilidad del Usuario:</strong> Es responsabilidad exclusiva del usuario evaluar críticamente la información proporcionada por el Asistente. Las decisiones de negocio, operativas, o de cualquier otra naturaleza que impliquen consecuencias significativas no deben fundamentarse únicamente en las respuestas generadas por esta herramienta. El usuario se compromete a verificar y validar de forma independiente cualquier dato relevante antes de actuar en consecuencia.</li>
+                    <li><strong>Renuncia de Responsabilidad:</strong> Tlapaleria los Pinos, sus directivos, empleados y afiliados, renuncian a toda responsabilidad por cualquier pérdida, daño directo o indirecto, perjuicio o menoscabo que pudiera surgir como resultado de la confianza depositada en la información o funcionalidad del Asistente. El uso de esta herramienta se realiza bajo el único y exclusivo riesgo del usuario.</li>
                 </ul>
 
                 <h2 className="text-2xl font-semibold mt-6 mb-4">5. Ley Aplicable</h2>
