@@ -17,9 +17,9 @@ export function Logo() {
       <Image 
         src="/logotlapaLosPinos.png" 
         alt="Logo de Tlapaleria los Pinos" 
-        width={48} 
-        height={48} 
-        className="h-12 w-12"
+        width={56} 
+        height={56} 
+        className="h-14 w-14"
       />
       <span className="text-xl font-bold font-headline tracking-tighter">
         Tlapaleria los Pinos
