@@ -1,7 +1,7 @@
 'use client';
 
 import { useUser } from '@/firebase';
-import { HardHat } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -14,7 +14,13 @@ export function Logo() {
 
   return (
     <Link href={href} className="flex items-center gap-2" aria-label="Ir a la página de inicio">
-      <HardHat className="h-7 w-7 text-primary" />
+      <Image 
+        src="/logo.svg" 
+        alt="Logo de Tlapaleria los Pinos" 
+        width={32} 
+        height={32} 
+        className="h-8 w-8"
+      />
       <span className="text-xl font-bold font-headline tracking-tighter">
         Tlapaleria los Pinos
       </span>
