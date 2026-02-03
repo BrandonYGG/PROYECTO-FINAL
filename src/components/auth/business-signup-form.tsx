@@ -41,8 +41,8 @@ export function BusinessSignupForm() {
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-    // Agregamos un pequeño búfer para problemas de precisión con los píxeles
-    if (scrollHeight - scrollTop <= clientHeight + 5) {
+    // Comprueba si el usuario se ha desplazado hasta la parte inferior, con una tolerancia de 1px para el renderizado de subpíxeles
+    if (scrollHeight - scrollTop - clientHeight < 1) {
       setHasScrolledToBottom(true);
     }
   };
