@@ -15,7 +15,7 @@ export function Logo() {
   return (
     <Link href={href} className="flex items-center gap-2" aria-label="Ir a la página de inicio">
       <Image 
-        src="/logo.svg" 
+        src="/logotlapaLosPinos.svg" 
         alt="Logo de Tlapaleria los Pinos" 
         width={32} 
         height={32} 
