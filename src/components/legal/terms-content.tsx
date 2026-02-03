@@ -38,14 +38,20 @@ export function TermsContent() {
                     <li><strong>Ausencia de Asesoramiento Profesional:</strong> Las interacciones y la información emanada del Asistente no constituyen, bajo ninguna circunstancia, asesoramiento técnico, financiero, legal o de cualquier otra índole profesional que sea vinculante. Las sugerencias o datos ofrecidos son de carácter orientativo y no deben ser considerados como sustitutos de una consulta con un profesional debidamente cualificado.</li>
                     <li><strong>Responsabilidad del Usuario:</strong> Es responsabilidad exclusiva del usuario evaluar críticamente la información proporcionada por el Asistente. Las decisiones de negocio, operativas, o de cualquier otra naturaleza que impliquen consecuencias significativas no deben fundamentarse únicamente en las respuestas generadas por esta herramienta. El usuario se compromete a verificar y validar de forma independiente cualquier dato relevante antes de actuar en consecuencia.</li>
                     <li><strong>Renuncia de Responsabilidad:</strong> Tlapaleria los Pinos, sus directivos, empleados y afiliados, renuncian a toda responsabilidad por cualquier pérdida, daño directo o indirecto, perjuicio o menoscabo que pudiera surgir como resultado de la confianza depositada en la información o funcionalidad del Asistente. El uso de esta herramienta se realiza bajo el único y exclusivo riesgo del usuario.</li>
+                    <li><strong>Privacidad de los Datos:</strong> El tratamiento de los datos personales y la información que el usuario proporcione durante las conversaciones con el Asistente se rige íntegramente por nuestro Aviso de Privacidad, el cual puede ser consultado en la sección correspondiente de este sitio web.</li>
                 </ul>
-
-                <h2 className="text-2xl font-semibold mt-6 mb-4">5. Ley Aplicable</h2>
+                
+                <h2 className="text-2xl font-semibold mt-6 mb-4">5. Derecho de Desistimiento</h2>
                 <p>
-                    Estos Términos se regirán e interpretarán de acuerdo con las leyes de México, sin tener en cuenta sus disposiciones sobre conflictos de leyes.
+                    De conformidad con el artículo 56 de la Ley Federal de Protección al Consumidor, el consumidor podrá revocar su consentimiento para la compra de productos dentro de los cinco días hábiles siguientes a la entrega del bien, sin responsabilidad ni justificación alguna. En tal caso, los costos de flete y seguro correrán a cargo del consumidor.
                 </p>
 
-                <h2 className="text-2xl font-semibold mt-6 mb-4">6. Cambios</h2>
+                <h2 className="text-2xl font-semibold mt-6 mb-4">6. Ley Aplicable y Jurisdicción</h2>
+                <p>
+                    Para la interpretación y cumplimiento de estos términos y condiciones, las partes se someten expresamente a la jurisdicción de los tribunales competentes en la Ciudad de México, renunciando a cualquier otro fuero que por razón de sus domicilios presentes o futuros, o por cualquier otra causa, pudiera corresponderles.
+                </p>
+
+                <h2 className="text-2xl font-semibold mt-6 mb-4">7. Cambios</h2>
                 <p>
                     Nos reservamos el derecho, a nuestra sola discreción, de modificar o reemplazar estos Términos en cualquier momento. Si una revisión es material, intentaremos proporcionar un aviso de al menos 30 días antes de que entren en vigencia los nuevos términos.
                 </p>
