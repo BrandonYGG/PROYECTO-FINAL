@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, MapPin } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -89,7 +89,6 @@ export default function NewOrderPage() {
   const [isConfirmingLocation, setIsConfirmingLocation] = useState(false);
   const [geocodedLocation, setGeocodedLocation] = useState<{lat: number, lng: number} | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<OrderFormData | null>(null);
-  const [calculatedPriority, setCalculatedPriority] = useState<string | null>(null);
   const [isLocationConfirmed, setIsLocationConfirmed] = useState(false);
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
@@ -159,16 +158,7 @@ export default function NewOrderPage() {
     setLastSubmittedData(values); 
 
     try {
-      const { from } = values.deliveryDates;
-      if (!from) {
-        throw new Error("La fecha de inicio de entrega es requerida.");
-      }
-
-      // 1. Calcular la prioridad del pedido
-      const priority = getPriorityFromDate(from);
-      setCalculatedPriority(priority);
-
-      // 2. Geocodificar la dirección
+      // Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
       const location = await geocodeAddress({ address: fullAddress });
       
@@ -189,15 +179,17 @@ export default function NewOrderPage() {
 
 
   const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
-    if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
+    if (!user || !firestore || !lastSubmittedData) return;
     setIsSubmitting(true);
     
+    const priority = getPriorityFromDate(lastSubmittedData.deliveryDates.from!);
+
     const orderData = { 
       ...lastSubmittedData, 
       location: confirmedLocation,
       total,
       userId: user.uid,
-      priority: calculatedPriority,
+      priority: priority,
       status: 'Pendiente',
       createdAt: serverTimestamp(),
       deliveryDates: {
@@ -219,19 +211,11 @@ export default function NewOrderPage() {
       .catch((error) => {
         console.error("Error al guardar el pedido:", error);
         
-        const contextualError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: ordersCollectionRef.path,
             operation: 'create',
             requestResourceData: orderData
-        });
-        
-        errorEmitter.emit('permission-error', contextualError);
-
-        toast({
-            variant: "destructive",
-            title: "Error al enviar el pedido",
-            description: "No se pudo guardar tu pedido. Por favor, revisa tus permisos e intenta de nuevo.",
-        });
+        }));
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -664,14 +648,6 @@ export default function NewOrderPage() {
                       onLocationChange={(newCoords) => setGeocodedLocation(newCoords)}
                   />
               </div>
-              
-              {calculatedPriority && (
-                <div className="flex items-center text-sm font-medium my-4 p-3 rounded-lg bg-primary/10">
-                    <BrainCircuit className="mr-3 h-5 w-5 text-primary" />
-                    Prioridad de Entrega Calculada: <span className="ml-1 font-bold">{calculatedPriority}</span>
-                </div>
-              )}
-
 
                <div className="flex items-center space-x-2 my-4">
                 <Checkbox id="location-confirm" checked={isLocationConfirmed} onCheckedChange={(checked) => setIsLocationConfirmed(checked as boolean)} />
