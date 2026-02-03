@@ -1,3 +1,4 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Header } from '@/components/layout/header';
@@ -16,6 +17,9 @@ const ptSans = PT_Sans({
 export const metadata: Metadata = {
   title: 'Tlapaleria los Pinos',
   description: 'Tu tienda única para materiales de construcción de alta calidad. Desde los cimientos hasta los acabados, tenemos todo para tu proyecto.',
+  icons: {
+    icon: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
