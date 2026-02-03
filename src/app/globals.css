@@ -8,65 +8,65 @@ body {
 
 @layer base {
   :root {
-    --background: 30 50% 95%; /* Light Beige */
-    --foreground: 20 5% 15%; /* Dark Brown/Black */
+    --background: 220 20% 97%; /* Very Light Cool Gray */
+    --foreground: 240 5% 20%; /* Dark Gray from logo */
 
-    --card: 30 50% 98%; /* Lighter Beige */
-    --card-foreground: 20 5% 15%;
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 240 5% 20%;
 
-    --popover: 30 50% 98%;
-    --popover-foreground: 20 5% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 5% 20%;
 
-    --primary: 15 70% 62%; /* Terracotta: #E07A5F */
-    --primary-foreground: 0 0% 100%;
+    --primary: 145 70% 32%; /* Green from logo */
+    --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 240 6% 30%; /* Muted Teal for secondary text/elements */
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 220 10% 50%; /* Mid-tone Cool Gray */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 30 25% 90%;
-    --muted-foreground: 20 10% 35%; /* Darkened for better contrast */
+    --muted: 220 15% 92%; /* Lighter Cool Gray */
+    --muted-foreground: 240 5% 40%; 
 
-    --accent: 240 6% 25%; /* Muted Teal: #3D405B */
-    --accent-foreground: 0 0% 98%;
+    --accent: 220 10% 40%; /* Darker mid-tone gray */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 30 20% 85%;
-    --input: 30 20% 85%;
-    --ring: 15 70% 62%;
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 145 70% 32%; /* Green from logo */
 
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 240 6% 10%; /* Dark background */
-    --foreground: 30 50% 95%; /* Light Beige text */
+    --background: 240 6% 10%; /* Deep Dark Cool Gray */
+    --foreground: 220 10% 95%; /* Off-white */
     
-    --card: 240 6% 15%;
-    --card-foreground: 30 50% 95%;
+    --card: 240 6% 14%;
+    --card-foreground: 220 10% 95%;
 
     --popover: 240 6% 10%;
-    --popover-foreground: 30 50% 95%;
+    --popover-foreground: 220 10% 95%;
 
-    --primary: 15 70% 62%; /* Terracotta remains vibrant */
+    --primary: 145 65% 40%; /* Brighter Green for dark mode */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 6% 25%; /* Muted Teal */
+    --secondary: 220 10% 30%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 6% 20%;
-    --muted-foreground: 30 25% 70%;
+    --muted: 220 10% 20%;
+    --muted-foreground: 220 10% 70%;
 
-    --accent: 15 70% 62%; /* Use Terracotta as accent in dark mode */
+    --accent: 145 65% 40%; /* Use primary green as accent */
     --accent-foreground: 0 0% 100%;
     
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 6% 20%;
-    --input: 240 6% 20%;
-    --ring: 15 70% 62%;
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 145 65% 40%; /* Brighter Green */
   }
 }
 
