@@ -29,12 +29,22 @@ export function TermsContent() {
                     Si creas una cuenta en nuestro sitio web, eres responsable de mantener la seguridad de tu cuenta y eres completamente responsable de todas las actividades que ocurran bajo la cuenta y cualquier otra acción tomada en conexión con ella.
                 </p>
 
-                <h2 className="text-2xl font-semibold mt-6 mb-4">4. Ley Aplicable</h2>
+                <h2 className="text-2xl font-semibold mt-6 mb-4">4. Uso del Asistente Inteligente (Chatbot)</h2>
+                <p>
+                    Nuestro sitio web puede incluir un asistente inteligente (en adelante, "el Bot") diseñado para proporcionar información y asistencia. Usted reconoce y acepta que:
+                </p>
+                <ul>
+                    <li>El Bot es una herramienta de inteligencia artificial y sus respuestas pueden contener errores, imprecisiones u omisiones. La información proporcionada por el Bot se ofrece "tal cual", sin garantías de ningún tipo.</li>
+                    <li>La información y las sugerencias generadas por el Bot no constituyen asesoramiento profesional, técnico o definitivo. Usted no debe basar decisiones críticas, finales o de negocio únicamente en la información proporcionada por el Bot.</li>
+                    <li>Tlapaleria los Pinos no se hace responsable de ninguna pérdida, daño o perjuicio derivado de la confianza depositada en la información generada por el Bot. Es su responsabilidad verificar de forma independiente cualquier información antes de tomar decisiones basadas en ella.</li>
+                </ul>
+
+                <h2 className="text-2xl font-semibold mt-6 mb-4">5. Ley Aplicable</h2>
                 <p>
                     Estos Términos se regirán e interpretarán de acuerdo con las leyes de México, sin tener en cuenta sus disposiciones sobre conflictos de leyes.
                 </p>
 
-                <h2 className="text-2xl font-semibold mt-6 mb-4">5. Cambios</h2>
+                <h2 className="text-2xl font-semibold mt-6 mb-4">6. Cambios</h2>
                 <p>
                     Nos reservamos el derecho, a nuestra sola discreción, de modificar o reemplazar estos Términos en cualquier momento. Si una revisión es material, intentaremos proporcionar un aviso de al menos 30 días antes de que entren en vigencia los nuevos términos.
                 </p>
