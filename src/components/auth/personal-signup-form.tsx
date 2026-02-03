@@ -3,21 +3,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -38,6 +27,8 @@ import { useRouter } from 'next/navigation';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { Eye, EyeOff } from 'lucide-react';
+import { Label } from '../ui/label';
+import { cn } from '@/lib/utils';
 
 export function PersonalSignupForm() {
   const { toast } = useToast();
@@ -46,6 +37,15 @@ export function PersonalSignupForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    // Agregamos un pequeño búfer para problemas de precisión con los píxeles
+    if (scrollHeight - scrollTop <= clientHeight + 5) {
+      setHasScrolledToBottom(true);
+    }
+  };
 
   const form = useForm<z.infer<typeof personalSignupSchema>>({
     resolver: zodResolver(personalSignupSchema),
@@ -233,69 +233,43 @@ export function PersonalSignupForm() {
           )}
         />
 
+        <div className="space-y-2">
+          <Label>Términos, Condiciones y Política de Privacidad</Label>
+          <ScrollArea className="h-48 w-full rounded-md border p-4" onScroll={handleScroll}>
+              <TermsContent />
+              <div className="my-8 border-t pt-8">
+                  <PrivacyContent />
+              </div>
+          </ScrollArea>
+          {!hasScrolledToBottom && (
+            <p className="text-xs text-amber-600">
+                Por favor, desliza hasta el final para aceptar los términos.
+            </p>
+          )}
+        </div>
+
         <FormField
           control={form.control}
           name="acceptTerms"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow">
+            <FormItem className={cn(
+              "flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow transition-opacity",
+              !hasScrolledToBottom && "cursor-not-allowed opacity-60"
+            )}>
               <FormControl>
                 <Checkbox
                   checked={field.value}
                   onCheckedChange={field.onChange}
-                  disabled={isLoading}
+                  disabled={!hasScrolledToBottom || isLoading}
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>
-                  He leído y acepto los Términos y Condiciones del Servicio
+                <FormLabel className={cn(
+                  "transition-colors",
+                  !hasScrolledToBottom && "text-muted-foreground"
+                )}>
+                  He leído y acepto los Términos del Servicio y la Política de Privacidad.
                 </FormLabel>
-                <FormDescription>
-                  Al registrarte, aceptas nuestros{' '}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="link" className="p-0 h-auto text-sm">Términos de Servicio</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl">
-                      <DialogHeader>
-                        <DialogTitle>Términos y Condiciones</DialogTitle>
-                        <DialogDescription>
-                           Por favor, lee nuestros términos de servicio antes de continuar.
-                        </DialogDescription>
-                      </DialogHeader>
-                       <ScrollArea className="h-96 pr-6">
-                         <TermsContent />
-                       </ScrollArea>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button>Cerrar</Button>
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                  {' '}y{' '}
-                   <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="link" className="p-0 h-auto text-sm">Política de Privacidad</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl">
-                      <DialogHeader>
-                        <DialogTitle>Política de Privacidad</DialogTitle>
-                        <DialogDescription>
-                           Por favor, lee nuestra política de privacidad antes de continuar.
-                        </DialogDescription>
-                      </DialogHeader>
-                       <ScrollArea className="h-96 pr-6">
-                          <PrivacyContent />
-                       </ScrollArea>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button>Cerrar</Button>
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                  .
-                </FormDescription>
                 <FormMessage />
               </div>
             </FormItem>
