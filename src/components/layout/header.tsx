@@ -4,7 +4,7 @@ import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ThemeToggle } from '../theme-toggle';
-import { User, LogOut, Loader2 } from 'lucide-react';
+import { User, LogOut, Loader2, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -33,34 +33,58 @@ export function Header() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {isUserLoading ? (
-            <div className="flex items-center justify-center w-48">
+            <div className="flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : user ? (
             <>
-              <NotificationBell />
-              <Button variant="ghost" asChild>
-                <Link href="/profile" className='flex items-center gap-2'>
-                  <User />
-                  <span className="hidden sm:inline">Perfil</span>
-                </Link>
-              </Button>
-              <Button onClick={handleLogout} size="sm">
-                <LogOut className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Cerrar Sesión</span>
+              {/* Botones para Escritorio */}
+              <div className="hidden sm:flex items-center gap-2">
+                <NotificationBell />
+                <Button variant="ghost" asChild>
+                  <Link href="/profile" className='flex items-center gap-2'>
+                    <User />
+                    <span>Perfil</span>
+                  </Link>
                 </Button>
+                <Button onClick={handleLogout} size="sm">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  <span>Cerrar Sesión</span>
+                  </Button>
+              </div>
+
+              {/* Botones para Móvil */}
+              <div className="sm:hidden flex items-center gap-1">
+                <NotificationBell />
+                <Button variant="ghost" size="icon" asChild>
+                    <Link href="/profile"><User className="h-5 w-5" /></Link>
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleLogout}>
+                    <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
             </>
           ) : (
             <>
-              <Button variant="ghost" asChild>
-                <Link href="/login">
-                  <span className="hidden sm:inline">Iniciar Sesión</span>
-                   <User className="sm:hidden" />
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link href="/signup">Regístrate</Link>
-              </Button>
+              {/* Botones para Escritorio */}
+              <div className="hidden sm:flex items-center gap-2">
+                <Button variant="ghost" asChild>
+                    <Link href="/login">Iniciar Sesión</Link>
+                </Button>
+                <Button asChild>
+                    <Link href="/signup">Regístrate</Link>
+                </Button>
+              </div>
+
+              {/* Botones para Móvil */}
+              <div className="sm:hidden flex items-center gap-1">
+                <Button variant="ghost" size="icon" asChild>
+                    <Link href="/login"><User className="h-5 w-5" /></Link>
+                </Button>
+                <Button size="icon" asChild>
+                    <Link href="/signup"><UserPlus className="h-5 w-5" /></Link>
+                </Button>
+              </div>
             </>
           )}
         </div>
