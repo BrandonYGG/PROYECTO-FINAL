@@ -4,7 +4,6 @@ import { collection } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Users, AlertTriangle } from 'lucide-react';
-import { ScrollArea } from '../ui/scroll-area';
 
 export default function UserList() {
   const firestore = useFirestore();
@@ -21,7 +20,6 @@ export default function UserList() {
         <CardDescription>Lista de todos los usuarios con cuentas personales registrados.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-72">
           <Table>
             <TableHeader>
               <TableRow>
@@ -66,7 +64,6 @@ export default function UserList() {
               )}
             </TableBody>
           </Table>
-        </ScrollArea>
       </CardContent>
     </Card>
   );
