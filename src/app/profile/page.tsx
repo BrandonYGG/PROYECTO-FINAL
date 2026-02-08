@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { User, Mail, Phone, LogOut, PackagePlus, Shield, Users, Briefcase } from "lucide-react";
+import { User, Mail, Phone, LogOut, PackagePlus, Shield, Users, Briefcase, Database } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, useUser, useFirestore } from "@/firebase";
@@ -107,6 +107,12 @@ export default function ProfilePage() {
                                     <span className="font-bold text-primary">Rol de Administrador</span>
                                 </div>
                             </div>
+                            <Button asChild variant="outline" className="w-full">
+                                <Link href="https://console.firebase.google.com/project/studio-4187163081-396f3" target="_blank" rel="noopener noreferrer">
+                                    <Database className="mr-2 h-4 w-4" />
+                                    Consola de Firebase
+                                </Link>
+                            </Button>
                             <Button onClick={handleLogout} variant="outline" className="w-full">
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Cerrar Sesión
