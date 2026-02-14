@@ -1,10 +1,11 @@
 
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ShieldCheck, Users, Truck, BrainCircuit, Gem, Zap, Shield, Star } from 'lucide-react';
+import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { productCatalog } from '@/lib/materials';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
 
@@ -25,6 +26,8 @@ const whyChooseUs = [
     description: 'Entregamos tus materiales a tiempo y en perfectas condiciones, directamente en tu obra, para que no te preocupes.',
   }
 ];
+
+const featuredProducts = productCatalog.slice(0, 4);
 
 const featuredQualities = [
     {
@@ -112,6 +115,55 @@ export default function Home() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="featured-materials" className="py-20 md:py-28 bg-secondary/10">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-headline font-bold">
+              Nuestros Materiales Populares
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              La base de todo gran proyecto. Descubre nuestra selección de materiales de primera calidad.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {featuredProducts.map((product, index) => {
+              const productImage = PlaceHolderImages.find(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
+              const description = productImage?.description || `Material de construcción: ${product.productName}`;
+
+              return (
+                <Card 
+                  key={product.productName} 
+                  className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
+                  style={{ animationDelay: `${100 * (index + 1)}ms` }}
+                >
+                  {productImage && (
+                    <CardHeader className="p-0">
+                      <Image
+                        src={productImage.imageUrl}
+                        alt={description}
+                        width={400}
+                        height={300}
+                        className="object-cover w-full h-48"
+                        data-ai-hint={productImage.imageHint}
+                      />
+                    </CardHeader>
+                  )}
+                  <CardContent className="p-4 flex-grow">
+                    <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
+                    <CardDescription className="mt-2 text-sm">{description}</CardDescription>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          <div className="mt-16 text-center">
+            <Button asChild size="lg" className="font-bold">
+              <Link href="/products">Ver Catálogo Completo</Link>
+            </Button>
           </div>
         </div>
       </section>
