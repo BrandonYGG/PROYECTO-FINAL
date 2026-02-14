@@ -28,7 +28,7 @@ const whyChooseUs = [
   }
 ];
 
-const featuredProducts = productCatalog.filter(p => ['Varilla', 'Malla Electrosoldada', 'PVC', 'Block'].includes(p.productName));
+const featuredProducts = productCatalog;
 
 const featuredQualities = [
     {

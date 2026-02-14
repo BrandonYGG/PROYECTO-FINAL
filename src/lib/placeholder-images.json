@@ -7,30 +7,6 @@
       "imageHint": "construction sunset"
     },
     {
-      "id": "cemento",
-      "description": "Bolsas de cemento gris de alta resistencia, ideales para cimientos y estructuras robustas.",
-      "imageUrl": "/images/cemento.jpeg",
-      "imageHint": "cement bags"
-    },
-    {
-      "id": "arena",
-      "description": "Arena fina para mezclas de construcción, aplanados y más.",
-      "imageUrl": "/images/arena.jpeg",
-      "imageHint": "construction sand"
-    },
-    {
-      "id": "grava",
-      "description": "Grava triturada de diferentes tamaños para concretos y bases.",
-      "imageUrl": "/images/grava.jpeg",
-      "imageHint": "construction gravel"
-    },
-    {
-      "id": "mortero",
-      "description": "Mezcla de mortero lista para usar, ideal para unir ladrillos y bloques.",
-      "imageUrl": "/images/mortero.jpeg",
-      "imageHint": "mortar trowel"
-    },
-    {
       "id": "pega-azulejo",
       "description": "Adhesivo de alta calidad para la instalación de azulejos y recubrimientos.",
       "imageUrl": "/images/pega-azulejo.jpeg",

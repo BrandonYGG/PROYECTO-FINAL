@@ -8,22 +8,6 @@ export type Material = {
 };
 
 export const allMaterials: Material[] = [
-  // Cemento
-  { productName: 'Cemento', name: 'Cemento (Bulto)', price: 250, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  { productName: 'Cemento', name: 'Cemento (Media Tonelada)', price: 2400, unit: 'media tonelada', deliverable: true },
-  { productName: 'Cemento', name: 'Cemento (Tonelada)', price: 4700, unit: 'tonelada', deliverable: true },
-  // Arena
-  { productName: 'Arena', name: 'Arena (Bulto)', price: 50, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  { productName: 'Arena', name: 'Arena (Media Tonelada)', price: 450, unit: 'media tonelada', deliverable: true },
-  { productName: 'Arena', name: 'Arena (Tonelada)', price: 800, unit: 'tonelada', deliverable: true },
-  // Grava
-  { productName: 'Grava', name: 'Grava (Bulto)', price: 55, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  { productName: 'Grava', name: 'Grava (Media Tonelada)', price: 500, unit: 'media tonelada', deliverable: true },
-  { productName: 'Grava', name: 'Grava (Tonelada)', price: 900, unit: 'tonelada', deliverable: true },
-  // Mortero
-  { productName: 'Mortero', name: 'Mortero (Bulto)', price: 220, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  { productName: 'Mortero', name: 'Mortero (Media Tonelada)', price: 2100, unit: 'media tonelada', deliverable: true },
-  { productName: 'Mortero', name: 'Mortero (Tonelada)', price: 4100, unit: 'tonelada', deliverable: true },
   // Pega Azulejo
   { productName: 'Pega Azulejo', name: 'Pega Azulejo (Bulto)', price: 180, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
   // Cemento Blanco
