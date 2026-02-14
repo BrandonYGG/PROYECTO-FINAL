@@ -38,6 +38,8 @@ export const allMaterials: Material[] = [
   { productName: 'Varilla', name: 'Varilla', price: 150, unit: 'pieza', deliverable: true },
   { productName: 'Malla Electrosoldada', name: 'Malla Electrosoldada', price: 850, unit: 'rollo', deliverable: true },
   { productName: 'Mortero Azul', name: 'Mortero Azul (Bulto)', price: 280, unit: 'bulto', notes: 'Especial para albercas', deliverable: true },
+  { productName: 'PVC', name: 'Tubo de PVC', price: 120, unit: 'pieza', deliverable: true },
+  { productName: 'Block', name: 'Block', price: 12, unit: 'pieza', deliverable: true },
 ];
 
 /**

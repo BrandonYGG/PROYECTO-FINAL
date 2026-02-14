@@ -167,6 +167,30 @@
       "description": "Estructura de acero reforzado con varillas antes del colado de concreto.",
       "imageUrl": "/images/varilla-7.jpeg",
       "imageHint": "rebar structure"
+    },
+    {
+      "id": "pvc",
+      "description": "Tubos de PVC de diferentes diámetros.",
+      "imageUrl": "/images/PVC-1.jpeg",
+      "imageHint": "pvc pipes"
+    },
+    {
+      "id": "pvc",
+      "description": "Conexiones y codos de PVC.",
+      "imageUrl": "/images/PVC-2.jpeg",
+      "imageHint": "pvc fittings"
+    },
+    {
+      "id": "pvc",
+      "description": "Instalación de tubería de PVC.",
+      "imageUrl": "/images/PVC-3.jpeg",
+      "imageHint": "pvc installation"
+    },
+    {
+      "id": "block",
+      "description": "Blocks de concreto para construcción de muros.",
+      "imageUrl": "/images/block-1.jpeg",
+      "imageHint": "concrete blocks"
     }
   ]
 }
