@@ -49,28 +49,124 @@
       "imageHint": "red bricks"
     },
     {
-      "id": "piedra",
-      "description": "Piedra de río o de cantera para acabados, cimientos y decoración.",
-      "imageUrl": "/images/piedra.jpeg",
-      "imageHint": "river stones"
-    },
-    {
       "id": "malla-electrosoldada",
-      "description": "Malla electrosoldada para refuerzo de concreto en pisos y losas.",
-      "imageUrl": "/images/malla-electrosoldada.jpeg",
+      "description": "Rollo de malla electrosoldada para refuerzo de concreto en pisos y losas.",
+      "imageUrl": "/images/malla-electrosoldada-1.jpeg",
       "imageHint": "welded wire mesh"
     },
     {
-      "id": "varilla",
-      "description": "Varillas de acero corrugado para refuerzo estructural en construcción.",
-      "imageUrl": "/images/varilla.jpeg",
-      "imageHint": "steel rebar"
+      "id": "malla-electrosoldada",
+      "description": "Detalle de la estructura de la malla electrosoldada.",
+      "imageUrl": "/images/malla-electrosoldada-2.jpeg",
+      "imageHint": "wire mesh pattern"
+    },
+    {
+      "id": "malla-electrosoldada",
+      "description": "Aplicación de malla electrosoldada en un proyecto de construcción.",
+      "imageUrl": "/images/malla-electrosoldada-3.jpeg",
+      "imageHint": "construction site"
     },
     {
       "id": "mortero-azul",
-      "description": "Mortero adhesivo color azul para albercas y zonas húmedas.",
-      "imageUrl": "/images/mortero-azul.jpeg",
+      "description": "Bulto de mortero adhesivo color azul, especial para albercas.",
+      "imageUrl": "/images/mortero-azul-1.jpeg",
       "imageHint": "blue mortar"
+    },
+    {
+      "id": "mortero-azul",
+      "description": "Textura del mortero azul una vez aplicado.",
+      "imageUrl": "/images/mortero-azul-2.jpeg",
+      "imageHint": "blue texture"
+    },
+    {
+      "id": "piedra",
+      "description": "Piedra de río de canto rodado para decoración de jardines y acabados.",
+      "imageUrl": "/images/piedras-1.jpeg",
+      "imageHint": "river stones"
+    },
+    {
+      "id": "piedra",
+      "description": "Piedra de cantera para muros y fachadas rústicas.",
+      "imageUrl": "/images/piedras-2.jpeg",
+      "imageHint": "quarry stone"
+    },
+    {
+      "id": "piedra",
+      "description": "Piedra laja para pisos y recubrimientos exteriores.",
+      "imageUrl": "/images/piedras-3.jpeg",
+      "imageHint": "flagstone path"
+    },
+    {
+      "id": "piedra",
+      "description": "Detalle de textura de piedra natural.",
+      "imageUrl": "/images/piedras-4.jpeg",
+      "imageHint": "stone texture"
+    },
+    {
+      "id": "piedra",
+      "description": "Piedra volcánica para detalles decorativos y de paisajismo.",
+      "imageUrl": "/images/piedras-5.jpeg",
+      "imageHint": "volcanic rock"
+    },
+    {
+      "id": "piedra",
+      "description": "Selección de piedras decorativas de varios tamaños y colores.",
+      "imageUrl": "/images/piedras-6.jpeg",
+      "imageHint": "decorative stones"
+    },
+    {
+      "id": "piedra",
+      "description": "Muro construido con piedra de la región.",
+      "imageUrl": "/images/piedras-7.jpeg",
+      "imageHint": "stone wall"
+    },
+    {
+      "id": "piedra",
+      "description": "Piedras apiladas para construcción de cimientos.",
+      "imageUrl": "/images/piedras-8.jpeg",
+      "imageHint": "foundation stones"
+    },
+    {
+      "id": "varilla",
+      "description": "Varillas de acero corrugado de diferentes calibres para refuerzo estructural.",
+      "imageUrl": "/images/varilla-1.jpeg",
+      "imageHint": "steel rebar"
+    },
+    {
+      "id": "varilla",
+      "description": "Paquete de varillas de acero listas para su transporte.",
+      "imageUrl": "/images/varilla-2.jpeg",
+      "imageHint": "rebar bundle"
+    },
+    {
+      "id": "varilla",
+      "description": "Detalle del corrugado de una varilla de acero para mayor adherencia.",
+      "imageUrl": "/images/varilla-3.jpeg",
+      "imageHint": "rebar texture"
+    },
+    {
+      "id": "varilla",
+      "description": "Varillas siendo utilizadas en el armado de una columna de concreto.",
+      "imageUrl": "/images/varilla-4.jpeg",
+      "imageHint": "construction frame"
+    },
+    {
+      "id": "varilla",
+      "description": "Almacén con diferentes medidas de varillas de acero.",
+      "imageUrl": "/images/varilla-5.jpeg",
+      "imageHint": "steel warehouse"
+    },
+    {
+      "id": "varilla",
+      "description": "Trabajador de la construcción cortando varillas a medida.",
+      "imageUrl": "/images/varilla-6.jpeg",
+      "imageHint": "cutting rebar"
+    },
+    {
+      "id": "varilla",
+      "description": "Estructura de acero reforzado con varillas antes del colado de concreto.",
+      "imageUrl": "/images/varilla-7.jpeg",
+      "imageHint": "rebar structure"
     }
   ]
 }

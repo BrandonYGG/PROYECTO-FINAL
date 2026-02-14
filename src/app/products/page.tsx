@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { productCatalog } from '@/lib/materials';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 export default function ProductsPage() {
   return (
@@ -17,8 +18,8 @@ export default function ProductsPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {productCatalog.map((product, index) => {
-          const productImage = PlaceHolderImages.find(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
-          const description = productImage?.description || `Material de construcción: ${product.productName}`;
+          const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
+          const description = productImages[0]?.description || `Material de construcción: ${product.productName}`;
 
           return (
             <Card 
@@ -26,16 +27,30 @@ export default function ProductsPage() {
               className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
               style={{ animationDelay: `${100 * (index + 1)}ms` }}
             >
-              {productImage && (
+              {productImages.length > 0 && (
                 <CardHeader className="p-0 relative">
-                  <Image
-                    src={productImage.imageUrl}
-                    alt={productImage.description}
-                    width={400}
-                    height={300}
-                    className="object-cover w-full h-48"
-                    data-ai-hint={productImage.imageHint}
-                  />
+                  <Carousel className="w-full">
+                    <CarouselContent>
+                      {productImages.map((image, i) => (
+                        <CarouselItem key={i}>
+                          <Image
+                            src={image.imageUrl}
+                            alt={image.description}
+                            width={400}
+                            height={300}
+                            className="object-cover w-full h-48"
+                            data-ai-hint={image.imageHint}
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    {productImages.length > 1 && (
+                      <>
+                        <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 text-white border-none hover:bg-black/50" />
+                        <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 text-white border-none hover:bg-black/50" />
+                      </>
+                    )}
+                  </Carousel>
                 </CardHeader>
               )}
               <CardContent className="p-6 flex flex-col flex-grow">
