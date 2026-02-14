@@ -1,0 +1,9 @@
+Esta carpeta es para las imágenes de los productos. Sube tus archivos de imagen aquí.
+
+Por ejemplo:
+- cemento.jpg
+- arena.jpg
+- grava.jpg
+- etc.
+
+Puedes eliminar este archivo de placeholder una vez que hayas subido tus imágenes.

@@ -9,49 +9,49 @@
     {
       "id": "cemento",
       "description": "Bolsas de cemento gris de alta resistencia, ideales para cimientos y estructuras robustas.",
-      "imageUrl": "https://images.unsplash.com/photo-1542856452-30df65b63198?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/cemento.jpg",
       "imageHint": "cement bags"
     },
     {
       "id": "arena",
       "description": "Arena fina para mezclas de construcción, aplanados y más.",
-      "imageUrl": "https://images.unsplash.com/photo-1593583264629-d58611832a76?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/arena.jpg",
       "imageHint": "construction sand"
     },
     {
       "id": "grava",
       "description": "Grava triturada de diferentes tamaños para concretos y bases.",
-      "imageUrl": "https://images.unsplash.com/photo-1619454018020-d3d64c093952?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/grava.jpg",
       "imageHint": "construction gravel"
     },
     {
       "id": "mortero",
       "description": "Mezcla de mortero lista para usar, ideal para unir ladrillos y bloques.",
-      "imageUrl": "https://images.unsplash.com/photo-1552895138-03b0a519655e?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/mortero.jpg",
       "imageHint": "mortar trowel"
     },
     {
       "id": "pega-azulejo",
       "description": "Adhesivo de alta calidad para la instalación de azulejos y recubrimientos.",
-      "imageUrl": "https://plus.unsplash.com/premium_photo-1683140582295-35071168051a?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/pega-azulejo.jpg",
       "imageHint": "tiling floor"
     },
     {
       "id": "cemento-blanco",
       "description": "Cemento blanco para acabados finos, juntas y detalles decorativos.",
-      "imageUrl": "https://images.unsplash.com/photo-1628972392398-3505c8c6f1a8?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/cemento-blanco.jpg",
       "imageHint": "white powder"
     },
     {
       "id": "ladrillo",
       "description": "Ladrillos rojos recocidos de primera calidad, perfectos para muros y fachadas.",
-      "imageUrl": "https://images.unsplash.com/photo-1584505192555-4feb7834358a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyZWQlMjBicmlja3N8ZW58MHx8fHwxNzYzODE4ODI3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "/images/ladrillo.jpg",
       "imageHint": "red bricks"
     },
     {
       "id": "piedra",
       "description": "Piedra de río o de cantera para acabados, cimientos y decoración.",
-      "imageUrl": "https://images.unsplash.com/photo-1559827291-72ee739d0d95?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "imageUrl": "/images/piedra.jpg",
       "imageHint": "river stones"
     }
   ]
