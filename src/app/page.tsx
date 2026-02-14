@@ -27,7 +27,7 @@ const whyChooseUs = [
   }
 ];
 
-const featuredProducts = productCatalog.slice(0, 4);
+const featuredProducts = productCatalog.filter(p => ['Cemento', 'Varilla', 'Ladrillo', 'Malla Electrosoldada'].includes(p.productName));
 
 const featuredQualities = [
     {

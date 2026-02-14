@@ -17,7 +17,7 @@ export default function ProductsPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {productCatalog.map((product, index) => {
-          const productImage = PlaceHolderImages.find(img => img.id === product.productName.toLowerCase().replace(' ', '-'));
+          const productImage = PlaceHolderImages.find(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
           const description = productImage?.description || `Material de construcción: ${product.productName}`;
 
           return (

@@ -9,50 +9,68 @@
     {
       "id": "cemento",
       "description": "Bolsas de cemento gris de alta resistencia, ideales para cimientos y estructuras robustas.",
-      "imageUrl": "/images/cemento.jpg",
+      "imageUrl": "/images/cemento.jpeg",
       "imageHint": "cement bags"
     },
     {
       "id": "arena",
       "description": "Arena fina para mezclas de construcción, aplanados y más.",
-      "imageUrl": "/images/arena.jpg",
+      "imageUrl": "/images/arena.jpeg",
       "imageHint": "construction sand"
     },
     {
       "id": "grava",
       "description": "Grava triturada de diferentes tamaños para concretos y bases.",
-      "imageUrl": "/images/grava.jpg",
+      "imageUrl": "/images/grava.jpeg",
       "imageHint": "construction gravel"
     },
     {
       "id": "mortero",
       "description": "Mezcla de mortero lista para usar, ideal para unir ladrillos y bloques.",
-      "imageUrl": "/images/mortero.jpg",
+      "imageUrl": "/images/mortero.jpeg",
       "imageHint": "mortar trowel"
     },
     {
       "id": "pega-azulejo",
       "description": "Adhesivo de alta calidad para la instalación de azulejos y recubrimientos.",
-      "imageUrl": "/images/pega-azulejo.jpg",
+      "imageUrl": "/images/pega-azulejo.jpeg",
       "imageHint": "tiling floor"
     },
     {
       "id": "cemento-blanco",
       "description": "Cemento blanco para acabados finos, juntas y detalles decorativos.",
-      "imageUrl": "/images/cemento-blanco.jpg",
+      "imageUrl": "/images/cemento-blanco.jpeg",
       "imageHint": "white powder"
     },
     {
       "id": "ladrillo",
       "description": "Ladrillos rojos recocidos de primera calidad, perfectos para muros y fachadas.",
-      "imageUrl": "/images/ladrillo.jpg",
+      "imageUrl": "/images/ladrillo.jpeg",
       "imageHint": "red bricks"
     },
     {
       "id": "piedra",
       "description": "Piedra de río o de cantera para acabados, cimientos y decoración.",
-      "imageUrl": "/images/piedra.jpg",
+      "imageUrl": "/images/piedra.jpeg",
       "imageHint": "river stones"
+    },
+    {
+      "id": "malla-electrosoldada",
+      "description": "Malla electrosoldada para refuerzo de concreto en pisos y losas.",
+      "imageUrl": "/images/malla-electrosoldada.jpeg",
+      "imageHint": "welded wire mesh"
+    },
+    {
+      "id": "varilla",
+      "description": "Varillas de acero corrugado para refuerzo estructural en construcción.",
+      "imageUrl": "/images/varilla.jpeg",
+      "imageHint": "steel rebar"
+    },
+    {
+      "id": "mortero-azul",
+      "description": "Mortero adhesivo color azul para albercas y zonas húmedas.",
+      "imageUrl": "/images/mortero-azul.jpeg",
+      "imageHint": "blue mortar"
     }
   ]
 }

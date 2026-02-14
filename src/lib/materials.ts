@@ -2,7 +2,7 @@ export type Material = {
   name: string; // Este será el nombre único en el menú desplegable, ej., "Cemento (Tonelada)"
   productName: string; // ej., "Cemento"
   price: number;
-  unit: 'bulto' | 'tonelada' | 'media tonelada' | 'pieza' | 'kg' | 'm³';
+  unit: 'bulto' | 'tonelada' | 'media tonelada' | 'pieza' | 'kg' | 'm³' | 'rollo';
   notes?: string;
   deliverable: boolean;
 };
@@ -34,6 +34,10 @@ export const allMaterials: Material[] = [
   { productName: 'Piedra', name: 'Piedra (Bulto)', price: 40, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
   { productName: 'Piedra', name: 'Piedra (Media Tonelada)', price: 400, unit: 'media tonelada', deliverable: true },
   { productName: 'Piedra', name: 'Piedra (Tonelada)', price: 750, unit: 'tonelada', deliverable: true },
+  // Nuevos materiales
+  { productName: 'Varilla', name: 'Varilla', price: 150, unit: 'pieza', deliverable: true },
+  { productName: 'Malla Electrosoldada', name: 'Malla Electrosoldada', price: 850, unit: 'rollo', deliverable: true },
+  { productName: 'Mortero Azul', name: 'Mortero Azul (Bulto)', price: 280, unit: 'bulto', notes: 'Especial para albercas', deliverable: true },
 ];
 
 /**
@@ -43,7 +47,7 @@ export const materialsList: {name: string, price: number, unit: string}[] = allM
   .filter(m => m.deliverable)
   .map(({ name, price, unit }) => {
     // Para productos de una sola unidad, no se agrega la unidad al nombre.
-    const displayName = name.includes('(') || unit === 'pieza' ? name : `${name} (${unit})`;
+    const displayName = name.includes('(') || unit === 'pieza' || unit === 'rollo' ? name : `${name} (${unit})`;
     return { name: displayName, price, unit };
   });
 
