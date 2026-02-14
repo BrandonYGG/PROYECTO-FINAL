@@ -165,8 +165,38 @@
     {
       "id": "block",
       "description": "Blocks de concreto para construcción de muros.",
-      "imageUrl": "/images/block-1.jpeg",
+      "imageUrl": "/images/Block-1.jpeg",
       "imageHint": "concrete blocks"
+    },
+    {
+      "id": "block",
+      "description": "Pared construida con bloques de concreto.",
+      "imageUrl": "/images/Block-2.jpeg",
+      "imageHint": "block wall"
+    },
+    {
+      "id": "block",
+      "description": "Pila de bloques de hormigón en una obra.",
+      "imageUrl": "/images/Block-3.jpeg",
+      "imageHint": "stacked blocks"
+    },
+    {
+      "id": "block",
+      "description": "Detalle de la textura de un bloque de concreto.",
+      "imageUrl": "/images/Block-4.jpeg",
+      "imageHint": "block texture"
+    },
+    {
+      "id": "block",
+      "description": "Trabajador colocando bloques de concreto.",
+      "imageUrl": "/images/Block-5.jpeg",
+      "imageHint": "laying blocks"
+    },
+    {
+      "id": "block",
+      "description": "Vista de cerca de bloques de concreto huecos.",
+      "imageUrl": "/images/Block-6.jpeg",
+      "imageHint": "hollow blocks"
     }
   ]
 }
