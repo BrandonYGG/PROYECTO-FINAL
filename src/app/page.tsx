@@ -149,10 +149,10 @@ export default function Home() {
                             <CarouselItem key={i}>
                               <Image
                                 src={image.imageUrl}
-                                alt={image.description}
+                                alt={product.productName}
                                 width={400}
                                 height={300}
-                                className="object-cover w-full h-48"
+                                className="object-cover w-full h-48 bg-muted"
                                 data-ai-hint={image.imageHint}
                               />
                             </CarouselItem>
@@ -167,7 +167,7 @@ export default function Home() {
                       </Carousel>
                     </CardHeader>
                   )}
-                  <CardContent className="p-4 flex-grow">
+                  <CardContent className="p-6 flex-grow">
                     <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
                     <CardDescription className="mt-2 text-sm">{description}</CardDescription>
                   </CardContent>

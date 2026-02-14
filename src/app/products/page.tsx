@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -35,10 +36,10 @@ export default function ProductsPage() {
                         <CarouselItem key={i}>
                           <Image
                             src={image.imageUrl}
-                            alt={image.description}
+                            alt={product.productName}
                             width={400}
                             height={300}
-                            className="object-cover w-full h-48"
+                            className="object-cover w-full h-48 bg-muted"
                             data-ai-hint={image.imageHint}
                           />
                         </CarouselItem>
