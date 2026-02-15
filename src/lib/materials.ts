@@ -8,12 +8,6 @@ export type Material = {
 };
 
 export const allMaterials: Material[] = [
-  // Pega Azulejo
-  { productName: 'Pega Azulejo', name: 'Pega Azulejo (Bulto)', price: 180, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  // Cemento Blanco
-  { productName: 'Cemento Blanco', name: 'Cemento Blanco (Bulto)', price: 350, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  // Ladrillo
-  { productName: 'Ladrillo', name: 'Ladrillo', price: 5, unit: 'pieza', deliverable: true },
   // Piedra
   { productName: 'Piedra', name: 'Piedra (Bulto)', price: 40, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
   { productName: 'Piedra', name: 'Piedra (Media Tonelada)', price: 400, unit: 'media tonelada', deliverable: true },

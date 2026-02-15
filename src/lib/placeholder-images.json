@@ -7,24 +7,6 @@
       "imageHint": "construction sunset"
     },
     {
-      "id": "pega-azulejo",
-      "description": "Adhesivo de alta calidad para la instalación de azulejos y recubrimientos.",
-      "imageUrl": "/images/pega-azulejo.jpeg",
-      "imageHint": "tiling floor"
-    },
-    {
-      "id": "cemento-blanco",
-      "description": "Cemento blanco para acabados finos, juntas y detalles decorativos.",
-      "imageUrl": "/images/cemento-blanco.jpeg",
-      "imageHint": "white powder"
-    },
-    {
-      "id": "ladrillo",
-      "description": "Ladrillos rojos recocidos de primera calidad, perfectos para muros y fachadas.",
-      "imageUrl": "/images/ladrillo.jpeg",
-      "imageHint": "red bricks"
-    },
-    {
       "id": "malla-electrosoldada",
       "description": "Rollo de malla electrosoldada para refuerzo de concreto en pisos y losas.",
       "imageUrl": "/images/malla-electrosoldada-1.jpeg",
