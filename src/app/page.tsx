@@ -96,7 +96,7 @@ export default function Home() {
           <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
             Dale un vistazo a la calidad y versatilidad de los materiales que ofrecemos. La base perfecta para construir tus proyectos más ambiciosos.
           </p>
-          <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+          <div className="mt-12 max-w-sm mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
             <video
               src="/materials-showcase.mp4"
               width="1920"
@@ -243,6 +243,29 @@ export default function Home() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="block-video" className="py-20 md:py-28 bg-background">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl md:text-5xl font-headline font-bold">
+            Así Nace la Calidad: La Fabricación de Nuestros Blocks
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
+            Un vistazo exclusivo a nuestro proceso de fabricación, donde la resistencia y la precisión se unen para crear la base de tu proyecto.
+          </p>
+          <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+            <video
+              src="/block-manufacturing.mp4"
+              width="1920"
+              height="1080"
+              controls
+              playsInline
+              className="w-full h-auto"
+            >
+              Tu navegador no soporta el tag de video.
+            </video>
           </div>
         </div>
       </section>
