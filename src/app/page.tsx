@@ -101,11 +101,9 @@ export default function Home() {
               src="/materials-showcase.mp4"
               width="1920"
               height="1080"
-              autoPlay
-              loop
-              muted
+              controls
               playsInline
-              className="w-full h-full object-cover"
+              className="w-full h-auto"
             >
               Tu navegador no soporta el tag de video.
             </video>
@@ -160,8 +158,7 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {featuredProducts.map((product, index) => {
               const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
-              const description = productImages[0]?.description || `Material de construcción: ${product.productName}`;
-
+              
               return (
                 <Card 
                   key={product.productName} 
@@ -195,12 +192,18 @@ export default function Home() {
                     </CardHeader>
                   ) : (
                     <div className="w-full h-48 bg-muted flex items-center justify-center">
-                      <span className="text-sm text-muted-foreground">Imagen no disponible</span>
+                       <Image
+                          src={'/images/placeholder.png'}
+                          alt={product.productName}
+                          width={400}
+                          height={300}
+                          className="object-cover w-full h-48 bg-muted"
+                        />
                     </div>
                   )}
                   <CardContent className="p-6 flex-grow">
                     <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
-                    <CardDescription className="mt-2 text-sm">{description}</CardDescription>
+                    <CardDescription className="mt-2 text-sm">{productImages[0]?.description || `Material de construcción: ${product.productName}`}</CardDescription>
                   </CardContent>
                 </Card>
               );
