@@ -28,7 +28,9 @@ const whyChooseUs = [
   }
 ];
 
-const featuredProducts = productCatalog;
+const featuredProducts = [
+    ...productCatalog.filter(p => ["Varilla", "Malla Electrosoldada", "Piedra", "Mortero Azul", "Tubo de PVC", "Block"].includes(p.productName))
+];
 
 const featuredQualities = [
     {
@@ -86,7 +88,32 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="why-us" className="py-20 md:py-28 bg-background">
+      <section id="materials-video" className="py-20 md:py-28 bg-background">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl md:text-5xl font-headline font-bold">
+            Nuestros Materiales en Acción
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
+            Dale un vistazo a la calidad y versatilidad de los materiales que ofrecemos. La base perfecta para construir tus proyectos más ambiciosos.
+          </p>
+          <div className="mt-12 max-w-5xl mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+            <video
+              src="/materials-showcase.mp4"
+              width="1920"
+              height="1080"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            >
+              Tu navegador no soporta el tag de video.
+            </video>
+          </div>
+        </div>
+      </section>
+
+      <section id="why-us" className="py-20 md:py-28 bg-secondary/10">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
@@ -141,7 +168,7 @@ export default function Home() {
                   className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
                   style={{ animationDelay: `${100 * (index + 1)}ms` }}
                 >
-                  {productImages.length > 0 && (
+                  {productImages.length > 0 ? (
                     <CardHeader className="p-0">
                       <Carousel className="w-full">
                         <CarouselContent>
@@ -166,6 +193,10 @@ export default function Home() {
                         )}
                       </Carousel>
                     </CardHeader>
+                  ) : (
+                    <div className="w-full h-48 bg-muted flex items-center justify-center">
+                      <span className="text-sm text-muted-foreground">Imagen no disponible</span>
+                    </div>
                   )}
                   <CardContent className="p-6 flex-grow">
                     <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
