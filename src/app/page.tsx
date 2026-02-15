@@ -96,7 +96,7 @@ export default function Home() {
           <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
             Dale un vistazo a la calidad y versatilidad de los materiales que ofrecemos. La base perfecta para construir tus proyectos más ambiciosos.
           </p>
-          <div className="mt-12 max-w-2xl mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+          <div className="mt-12 max-w-lg mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
             <video
               src="/materials-showcase.mp4"
               width="1920"
