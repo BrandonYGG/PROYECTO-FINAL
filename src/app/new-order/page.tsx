@@ -221,14 +221,65 @@ export default function NewOrderPage() {
     }
 };
 
+const mergeDuplicateMaterials = (materials: { name: string; quantity: number }[]) => {
+    const merged = materials.reduce((acc, material) => {
+      if (!material.name) return acc; // Ignorar entradas vacías
+      const key = material.name;
+      if (acc[key]) {
+        acc[key].quantity += Number(material.quantity) || 0;
+      } else {
+        acc[key] = { ...material, quantity: Number(material.quantity) || 0 };
+      }
+      return acc;
+    }, {} as Record<string, { name: string; quantity: number }>);
+    
+    return Object.values(merged);
+};
+
+const validateStock = (orderedMaterials: { name: string; quantity: number }[], availableMaterials: Material[]) => {
+    const errors: string[] = [];
+    for (const orderedMaterial of orderedMaterials) {
+        const materialInfo = availableMaterials.find(m => m.name === orderedMaterial.name);
+
+        if (!materialInfo) {
+            errors.push(`El material "${orderedMaterial.name}" no se encontró en el catálogo.`);
+            continue;
+        }
+
+        if (materialInfo.stock < orderedMaterial.quantity) {
+            errors.push(`Stock insuficiente para ${orderedMaterial.name}. Pedido: ${orderedMaterial.quantity}, Disponible: ${materialInfo.stock}`);
+        }
+    }
+    return errors;
+};
+
+
   const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
     if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
     setIsSubmitting(true);
+
+    const mergedMaterials = mergeDuplicateMaterials(lastSubmittedData.materials);
+    const stockErrors = validateStock(mergedMaterials, materialsList);
+
+    if (stockErrors.length > 0) {
+        toast({
+            variant: "destructive",
+            title: "Error de Stock",
+            description: (
+                <div className="flex flex-col gap-1">
+                    {stockErrors.map((error, i) => <p key={i}>- {error}</p>)}
+                </div>
+            ),
+            duration: 7000,
+        });
+        setIsSubmitting(false);
+        return; // Detiene el envío, pero mantiene el modal abierto
+    }
     
     try {
         // 1. Validar y descontar stock en Supabase de forma atómica
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: lastSubmittedData.materials,
+            materials_to_decrement: mergedMaterials,
         });
 
         if (stockError) {
@@ -238,6 +289,7 @@ export default function NewOrderPage() {
         // 2. Si el stock es correcto, guardar el pedido en Firestore
         const orderData = { 
             ...lastSubmittedData, 
+            materials: mergedMaterials, // Usar materiales unificados
             location: confirmedLocation,
             total,
             userId: user.uid,
@@ -253,16 +305,14 @@ export default function NewOrderPage() {
         const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
         const docRef = await addDoc(ordersCollectionRef, orderData)
             .catch((error) => {
-                // Si Firestore falla, idealmente se debería revertir el stock.
-                // Esta es una operación compleja (compensating transaction).
-                // Por ahora, se notifica el error.
                 console.error("Error al guardar en Firestore:", error);
+                // Idealmente, se debería revertir el stock en Supabase (transacción de compensación)
                 errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: ordersCollectionRef.path,
                     operation: 'create',
                     requestResourceData: orderData
                 }));
-                throw new Error("No se pudo guardar tu pedido. Por favor, revisa tus permisos.");
+                throw new Error("No se pudo guardar tu pedido después de validar el stock. Contacta a soporte.");
             });
 
         // 3. Notificar a los administradores
