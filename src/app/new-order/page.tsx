@@ -332,8 +332,10 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             setIsSubmitting(false);
             return;
         }
+        
+        console.log('Enviando a Supabase:', materialsForRpc);
 
-        // Llamar RPC a Supabase
+        // Llamar RPC a Supabase sin JSON.stringify
         const { error: stockError } = await supabase.rpc('decrement_materials', {
             materials_to_decrement: materialsForRpc,
         });
