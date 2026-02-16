@@ -333,12 +333,9 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             return;
         }
 
-        // Asegurarse de que es un array (aunque .map ya lo garantiza)
-        const materialsPayload = Array.isArray(materialsForRpc) ? materialsForRpc : [materialsForRpc];
-
-        // Llamar RPC a Supabase con JSON.stringify para resolver ambigüedad
+        // Llamar RPC a Supabase
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: JSON.stringify(materialsPayload),
+            materials_to_decrement: materialsForRpc,
         });
 
         if (stockError) {
