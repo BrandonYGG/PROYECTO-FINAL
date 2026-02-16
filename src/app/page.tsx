@@ -5,7 +5,7 @@ import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { productCatalog } from '@/lib/materials';
+import { getProductCatalog, ProductCatalogItem } from '@/lib/materials';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -26,10 +26,6 @@ const whyChooseUs = [
     title: 'Logística Eficiente',
     description: 'Entregamos tus materiales a tiempo y en perfectas condiciones, directamente en tu obra, para que no te preocupes.',
   }
-];
-
-const featuredProducts = [
-    ...productCatalog.filter(p => ["Varilla", "Malla Electrosoldada", "Piedra", "Mortero Azul", "Tubo de PVC", "Block"].includes(p.productName))
 ];
 
 const featuredQualities = [
@@ -55,7 +51,10 @@ const featuredQualities = [
     },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const productCatalog = await getProductCatalog();
+  const featuredProducts = productCatalog; // Mostrar todos los productos disponibles
+
   return (
     <div className="flex flex-col animate-fade-in">
       <section className="relative h-[70vh] md:h-[80vh] w-full flex items-center justify-center text-center text-white overflow-hidden">

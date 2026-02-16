@@ -48,7 +48,7 @@ import { useState, useEffect, useRef } from 'react';
 import { DeliveryMap } from '../maps/delivery-map';
 import SignaturePad from './signature-pad';
 import { Calendar } from '../ui/calendar';
-import { materialsList } from '@/lib/materials';
+import { getMaterials, type Material } from '@/lib/materials';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -80,6 +80,7 @@ export default function OrderList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  const [materialsCatalog, setMaterialsCatalog] = useState<Material[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -97,7 +98,12 @@ export default function OrderList() {
         return;
       }
       try {
-        const usersSnapshot = await getDocs(collection(firestore, 'users'));
+        const [usersSnapshot, materialsData] = await Promise.all([
+          getDocs(collection(firestore, 'users')),
+          getMaterials()
+        ]);
+        setMaterialsCatalog(materialsData);
+
         const allOrders: any[] = [];
         
         for (const userDoc of usersSnapshot.docs) {
@@ -161,7 +167,6 @@ export default function OrderList() {
                 operation: 'create',
                 requestResourceData: { message: notificationMessage }
             }));
-            // We don't re-throw here, as the status update was successful.
             console.error("Failed to create notification:", error);
         });
 
@@ -194,7 +199,6 @@ export default function OrderList() {
             throw error;
         });
 
-        // Create notification for the user
         const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
         const notificationMessage = `Tu pedido para la obra "${order.projectName}" ha sido cancelado y eliminado por un administrador.`;
         
@@ -294,7 +298,7 @@ export default function OrderList() {
   };
 
   const generateOrderPdf = async () => {
-    if (!selectedOrder) return;
+    if (!selectedOrder || materialsCatalog.length === 0) return;
     setIsGeneratingPdf(true);
   
     try {
@@ -362,7 +366,7 @@ export default function OrderList() {
   
         const tableColumn = ["Descripción", "Cantidad", "P. Unitario", "Importe"];
         const tableRows = selectedOrder.materials.map((material: any) => {
-            const materialInfo = materialsList.find(m => m.name === material.name);
+            const materialInfo = materialsCatalog.find(m => m.name === material.name);
             const unitPrice = materialInfo?.price || 0;
             const subtotal = material.quantity * unitPrice;
             return [material.name, `${material.quantity} ${materialInfo?.unit}(s)`, `$${unitPrice.toFixed(2)}`, `$${subtotal.toFixed(2)}`];
@@ -617,7 +621,7 @@ export default function OrderList() {
                                 </TableHeader>
                                 <TableBody>
                                 {selectedOrder.materials.map((material: any, index: number) => {
-                                    const materialInfo = materialsList.find(m => m.name === material.name);
+                                    const materialInfo = materialsCatalog.find(m => m.name === material.name);
                                     const unitPrice = materialInfo?.price || 0;
                                     const subtotal = material.quantity * unitPrice;
                                     return (

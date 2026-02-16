@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, LocateFixed, MapPin, Locate } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, Locate, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -27,7 +27,8 @@ import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { DeliveryMap } from "@/components/maps/delivery-map";
 import { reverseGeocode } from "../actions/reverse-geocode-actions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { materialsList } from "@/lib/materials";
+import { getMaterials, type Material } from "@/lib/materials";
+import { supabase } from "@/lib/supabaseClient";
 
 
 const materialOrderSchema = z.object({
@@ -56,7 +57,7 @@ type OrderFormData = z.infer<typeof orderSchema>;
 
 function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalizar la hora para comparar solo fechas
+    today.setHours(0, 0, 0, 0);
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -86,8 +87,9 @@ export default function NewOrderPage() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  const [materialsList, setMaterialsList] = useState<Material[]>([]);
+  const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
 
-  // Estados para el modal de confirmación de ubicación
   const [isConfirmingLocation, setIsConfirmingLocation] = useState(false);
   const [geocodedLocation, setGeocodedLocation] = useState<{lat: number, lng: number} | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<OrderFormData | null>(null);
@@ -123,6 +125,13 @@ export default function NewOrderPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    const fetchMaterials = async () => {
+        setIsMaterialsLoading(true);
+        const materials = await getMaterials();
+        setMaterialsList(materials);
+        setIsMaterialsLoading(false);
+    }
+    fetchMaterials();
   }, []);
 
 
@@ -167,11 +176,9 @@ export default function NewOrderPage() {
         throw new Error("La fecha de inicio de entrega es requerida.");
       }
 
-      // 1. Calcular la prioridad del pedido
       const priority = getPriorityFromDate(from);
       setCalculatedPriority(priority);
 
-      // 2. Geocodificar la dirección
       const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
       const location = await geocodeAddress({ address: fullAddress });
       
@@ -218,25 +225,47 @@ export default function NewOrderPage() {
     if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
     setIsSubmitting(true);
     
-    const orderData = { 
-      ...lastSubmittedData, 
-      location: confirmedLocation,
-      total,
-      userId: user.uid,
-      priority: calculatedPriority,
-      status: 'Pendiente',
-      createdAt: serverTimestamp(),
-      deliveryDates: {
-        from: lastSubmittedData.deliveryDates.from,
-        to: lastSubmittedData.deliveryDates.to
-      }
-     };
+    try {
+        // 1. Validar y descontar stock en Supabase de forma atómica
+        const { error: stockError } = await supabase.rpc('decrement_materials', {
+            materials_to_decrement: lastSubmittedData.materials,
+        });
 
-    const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
-    
-    addDoc(ordersCollectionRef, orderData)
-      .then(async (docRef) => {
+        if (stockError) {
+            throw new Error(stockError.message);
+        }
 
+        // 2. Si el stock es correcto, guardar el pedido en Firestore
+        const orderData = { 
+            ...lastSubmittedData, 
+            location: confirmedLocation,
+            total,
+            userId: user.uid,
+            priority: calculatedPriority,
+            status: 'Pendiente',
+            createdAt: serverTimestamp(),
+            deliveryDates: {
+                from: lastSubmittedData.deliveryDates.from,
+                to: lastSubmittedData.deliveryDates.to
+            }
+        };
+
+        const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
+        const docRef = await addDoc(ordersCollectionRef, orderData)
+            .catch((error) => {
+                // Si Firestore falla, idealmente se debería revertir el stock.
+                // Esta es una operación compleja (compensating transaction).
+                // Por ahora, se notifica el error.
+                console.error("Error al guardar en Firestore:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: ordersCollectionRef.path,
+                    operation: 'create',
+                    requestResourceData: orderData
+                }));
+                throw new Error("No se pudo guardar tu pedido. Por favor, revisa tus permisos.");
+            });
+
+        // 3. Notificar a los administradores
         await notifyAdmins({ id: docRef.id, ...orderData });
 
         toast({
@@ -244,26 +273,18 @@ export default function NewOrderPage() {
             description: "Tu pedido se ha guardado correctamente y los administradores han sido notificados.",
         });
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
-      })
-      .catch((error) => {
-        console.error("Error al guardar el pedido:", error);
-        
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: ordersCollectionRef.path,
-            operation: 'create',
-            requestResourceData: orderData
-        }));
 
+    } catch (error: any) {
+        console.error("Error al confirmar el pedido:", error);
         toast({
             variant: "destructive",
-            title: "Error al enviar el pedido",
-            description: "No se pudo guardar tu pedido. Por favor, revisa tus permisos e intenta de nuevo.",
+            title: "Error al Procesar el Pedido",
+            description: error.message || "No se pudo completar la operación. Intenta de nuevo.",
         });
-      })
-      .finally(() => {
+    } finally {
         setIsSubmitting(false);
         setIsConfirmingLocation(false);
-      });
+    }
   }
 
   const handleUseCurrentLocation = () => {
@@ -552,6 +573,8 @@ export default function NewOrderPage() {
               <h3 className="text-lg font-semibold border-b pb-2 pt-4">Pedido de Material</h3>
 
               <div className="space-y-4">
+                {isMaterialsLoading && <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>}
+
                 {fields.map((field, index) => {
                    const selectedMaterialInfo = materialsList.find(m => m.name === watchMaterials[index]?.name);
                    const subtotal = (Number(watchMaterials[index]?.quantity) || 0) * (selectedMaterialInfo?.price || 0);
@@ -563,8 +586,8 @@ export default function NewOrderPage() {
                         name={`materials.${index}.name`}
                         render={({ field }) => (
                           <FormItem className="md:col-span-3">
-                            <FormLabel htmlFor={`materials.${index}.name`}>Material</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormLabel htmlFor={`materials.${index}.name`}>Material ({selectedMaterialInfo?.stock || 0} disp.)</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isMaterialsLoading}>
                               <FormControl>
                                 <SelectTrigger id={`materials.${index}.name`}>
                                   <SelectValue placeholder="Selecciona" />
@@ -639,12 +662,13 @@ export default function NewOrderPage() {
                   variant="outline" 
                   onClick={() => append({ name: '', quantity: 0 })}
                   className="w-full md:w-auto"
+                  disabled={isMaterialsLoading}
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Añadir otro material
                 </Button>
 
-                {watchMaterials.length > 0 && (
+                {watchMaterials.length > 0 && total > 0 && (
                    <div className="flex justify-end pt-4">
                       <div className="w-full md:w-1/3">
                           <Label className="text-lg font-semibold" htmlFor="total-order">Total del Pedido</Label>
@@ -747,7 +771,7 @@ export default function NewOrderPage() {
               />
 
               <div className="flex justify-end pt-4">
-                  <Button size="lg" type="submit" disabled={isProcessing}>
+                  <Button size="lg" type="submit" disabled={isProcessing || isMaterialsLoading}>
                       {isProcessing ? (
                           <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -807,7 +831,7 @@ export default function NewOrderPage() {
                                         lat: position.coords.latitude,
                                         lng: position.coords.longitude
                                     };
-                                    setGeocodedLocation(newCoords); // Actualiza la ubicación en el mapa
+                                    setGeocodedLocation(newCoords);
                                 },
                                 (error) => {
                                     console.error("Error getting current location:", error);
@@ -828,7 +852,7 @@ export default function NewOrderPage() {
                         }
                     }}
                 >
-                    <LocateFixed className="mr-2 h-4 w-4"/>
+                    <Locate className="mr-2 h-4 w-4"/>
                     Usar mi Ubicación
                 </Button>
                 <Button 

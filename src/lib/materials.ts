@@ -1,48 +1,58 @@
-export type Material = {
-  name: string; // Este será el nombre único en el menú desplegable, ej., "Cemento (Tonelada)"
-  productName: string; // ej., "Cemento"
+import { supabase } from './supabaseClient';
+
+export interface Material {
+  id: number;
+  name: string;
   price: number;
-  unit: 'bulto' | 'tonelada' | 'media tonelada' | 'pieza' | 'kg' | 'm³' | 'rollo';
-  notes?: string;
-  deliverable: boolean;
-};
+  stock: number;
+  unit: string;
+  created_at: string;
+}
 
-export const allMaterials: Material[] = [
-  // Piedra
-  { productName: 'Piedra', name: 'Piedra (Bulto)', price: 40, unit: 'bulto', notes: 'Venta solo en tienda (recolección)', deliverable: false },
-  { productName: 'Piedra', name: 'Piedra (Media Tonelada)', price: 400, unit: 'media tonelada', deliverable: true },
-  { productName: 'Piedra', name: 'Piedra (Tonelada)', price: 750, unit: 'tonelada', deliverable: true },
-  // Nuevos materiales
-  { productName: 'Varilla', name: 'Varilla', price: 150, unit: 'pieza', deliverable: true },
-  { productName: 'Malla Electrosoldada', name: 'Malla Electrosoldada', price: 850, unit: 'rollo', deliverable: true },
-  { productName: 'Mortero Azul', name: 'Mortero Azul (Bulto)', price: 280, unit: 'bulto', notes: 'Especial para albercas', deliverable: true },
-  { productName: 'PVC', name: 'Tubo de PVC', price: 120, unit: 'pieza', deliverable: true },
-  { productName: 'Block', name: 'Block', price: 12, unit: 'pieza', deliverable: true },
-];
+export interface ProductCatalogItem {
+    productName: string;
+    variants: Material[];
+}
 
 /**
- * Lista de materiales disponibles para entrega, para usar en el formulario de pedido.
+ * Obtiene la lista completa de materiales desde Supabase.
+ * @returns Una promesa que se resuelve con un arreglo de materiales.
  */
-export const materialsList: {name: string, price: number, unit: string}[] = allMaterials
-  .filter(m => m.deliverable)
-  .map(({ name, price, unit }) => {
-    // Para productos de una sola unidad, no se agrega la unidad al nombre.
-    const displayName = name.includes('(') || unit === 'pieza' || unit === 'rollo' ? name : `${name} (${unit})`;
-    return { name: displayName, price, unit };
-  });
+export async function getMaterials(): Promise<Material[]> {
+  const { data, error } = await supabase
+    .from('materiales')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching materials:', error);
+    return [];
+  }
+
+  return data;
+}
 
 /**
- * Un catálogo agrupado de todos los productos para mostrar en la página de productos.
+ * Obtiene el catálogo de productos agrupado por nombre base.
+ * @returns Una promesa que se resuelve con un arreglo de productos para el catálogo.
  */
-export const productCatalog = allMaterials.reduce((acc, material) => {
-    const existing = acc.find(p => p.productName === material.productName);
-    if (existing) {
-        existing.variants.push(material);
-    } else {
-        acc.push({
-            productName: material.productName,
-            variants: [material]
-        });
-    }
-    return acc;
-}, [] as { productName: string, variants: Material[] }[]);
+export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
+    const materials = await getMaterials();
+    
+    const catalog = materials.reduce((acc, material) => {
+        const productName = material.name.split(' (')[0];
+        const existing = acc.find(p => p.productName === productName);
+        
+        if (existing) {
+            existing.variants.push(material);
+        } else {
+            acc.push({
+                productName: productName,
+                variants: [material]
+            });
+        }
+        return acc;
+    }, [] as ProductCatalogItem[]);
+
+    return catalog;
+}

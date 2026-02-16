@@ -5,10 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { productCatalog } from '@/lib/materials';
+import { getProductCatalog, Material } from '@/lib/materials';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
-export default function ProductsPage() {
+export default async function ProductsPage() {
+  const productCatalog = await getProductCatalog();
+
   return (
     <div className="container mx-auto py-12 px-4 animate-fade-in">
       <div className="text-center mb-16">
@@ -28,7 +30,7 @@ export default function ProductsPage() {
               className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
               style={{ animationDelay: `${100 * (index + 1)}ms` }}
             >
-              {productImages.length > 0 && (
+              {productImages.length > 0 ? (
                 <CardHeader className="p-0 relative">
                   <Carousel className="w-full">
                     <CarouselContent>
@@ -53,6 +55,16 @@ export default function ProductsPage() {
                     )}
                   </Carousel>
                 </CardHeader>
+              ): (
+                 <div className="w-full h-48 bg-muted flex items-center justify-center">
+                    <Image
+                      src={'/images/placeholder.png'}
+                      alt={product.productName}
+                      width={400}
+                      height={300}
+                      className="object-cover w-full h-48 bg-muted"
+                    />
+                </div>
               )}
               <CardContent className="p-6 flex flex-col flex-grow">
                 <CardTitle className="text-2xl font-bold capitalize font-headline">{product.productName}</CardTitle>
@@ -60,17 +72,14 @@ export default function ProductsPage() {
                 
                 <div className='mt-4 flex-grow space-y-2'>
                   <p className='text-sm font-semibold text-muted-foreground'>Presentaciones:</p>
-                  {product.variants.map(variant => (
+                  {product.variants.map((variant: Material) => (
                     <div key={variant.name} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-muted/50">
-                      <span className='capitalize font-medium'>{variant.unit}</span>
-                      <Badge variant={variant.deliverable ? "secondary" : "outline"}>
+                      <span className='capitalize font-medium'>{variant.unit} ({variant.stock} disponibles)</span>
+                      <Badge variant={"secondary"}>
                         ${variant.price.toFixed(2)}
                       </Badge>
                     </div>
                   ))}
-                  {product.variants.some(v => v.notes) && (
-                    <p className="text-xs text-amber-600 mt-2 p-1 bg-amber-50 rounded-md border border-amber-200">{product.variants.find(v => v.notes)?.notes}</p>
-                  )}
                 </div>
               </CardContent>
               <CardFooter>

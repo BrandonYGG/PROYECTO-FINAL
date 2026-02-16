@@ -19,7 +19,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { DeliveryMap } from '@/components/maps/delivery-map';
 import { Badge } from '@/components/ui/badge';
-import { materialsList } from '@/lib/materials';
+import { getMaterials, type Material } from '@/lib/materials';
 
 
 // Aumenta jsPDF con el método autoTable
@@ -55,6 +55,7 @@ function OrderSummaryContent() {
   
   const { data: orderData, isLoading: isOrderLoading, error } = useDoc(orderDocRef);
 
+  const [materialsCatalog, setMaterialsCatalog] = useState<Material[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -68,8 +69,12 @@ function OrderSummaryContent() {
     }
   }, [error, router]);
 
+  useEffect(() => {
+    getMaterials().then(setMaterialsCatalog);
+  }, []);
+
   const generatePdf = async () => {
-    if (!orderData || !summaryRef.current) return;
+    if (!orderData || !summaryRef.current || materialsCatalog.length === 0) return;
     setIsGeneratingPdf(true);
   
     try {
@@ -133,7 +138,7 @@ function OrderSummaryContent() {
       lastY += 5;
       const tableColumn = ["Descripción", "Cantidad", "P. Unitario", "Importe"];
       const tableRows = orderData.materials.map((material: any) => {
-        const materialInfo = materialsList.find(m => m.name === material.name);
+        const materialInfo = materialsCatalog.find(m => m.name === material.name);
         const unitPrice = materialInfo?.price || 0;
         const subtotal = material.quantity * unitPrice;
         return [material.name, `${material.quantity} ${materialInfo?.unit}(s)`, `$${unitPrice.toFixed(2)}`, `$${subtotal.toFixed(2)}`];
@@ -157,8 +162,7 @@ function OrderSummaryContent() {
   
       // --- Calendario de Entrega ---
       if (calendarRef.current) {
-        // Check if there is enough space, otherwise add a new page
-        if (lastY > 220) { // 220 is a heuristic value, adjust if needed
+        if (lastY > 220) { 
           doc.addPage();
           lastY = 20;
         }
@@ -169,12 +173,12 @@ function OrderSummaryContent() {
         lastY += 10;
   
         const canvas = await html2canvas(calendarRef.current, {
-          scale: 2, // Increase scale for better resolution
-          backgroundColor: null, // Use transparent background
+          scale: 2, 
+          backgroundColor: null,
         });
         const imgData = canvas.toDataURL('image/png');
         const imgProps = doc.getImageProperties(imgData);
-        const pdfWidth = doc.internal.pageSize.getWidth() - 28; // with margins
+        const pdfWidth = doc.internal.pageSize.getWidth() - 28;
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         doc.addImage(imgData, 'PNG', 14, lastY, pdfWidth, pdfHeight);
         lastY += pdfHeight + 10;
@@ -190,7 +194,7 @@ function OrderSummaryContent() {
   };
 
 
-  if (isOrderLoading || !orderData) {
+  if (isOrderLoading || !orderData || materialsCatalog.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-14rem)]">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -233,7 +237,6 @@ function OrderSummaryContent() {
               </div>
           </CardHeader>
 
-          {/* Este contenido es solo para mostrar, el PDF se genera programáticamente */}
           <div className="p-6 sm:p-8 bg-white text-black rounded-lg">
               <div className="flex justify-center items-center mb-4">
                   <Logo />
@@ -284,7 +287,7 @@ function OrderSummaryContent() {
                 </TableHeader>
                 <TableBody>
                   {materials.map((material: any, index: number) => {
-                    const materialInfo = materialsList.find(m => m.name === material.name);
+                    const materialInfo = materialsCatalog.find(m => m.name === material.name);
                     const unitPrice = materialInfo?.price || 0;
                     const subtotal = material.quantity * unitPrice;
                     return (
