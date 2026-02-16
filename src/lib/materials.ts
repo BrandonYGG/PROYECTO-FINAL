@@ -25,7 +25,7 @@ export async function getMaterials(): Promise<Material[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    console.error('Error fetching materials:', error);
+    console.error('Error fetching materials:', JSON.stringify(error, null, 2));
     return [];
   }
 
@@ -40,6 +40,7 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
     const materials = await getMaterials();
     
     const catalog = materials.reduce((acc, material) => {
+        // Extrae el nombre base del material, ej: "Piedra" de "Piedra (Tonelada)"
         const productName = material.name.split(' (')[0];
         const existing = acc.find(p => p.productName === productName);
         
@@ -53,6 +54,11 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
         }
         return acc;
     }, [] as ProductCatalogItem[]);
+
+    // Ordenar variantes dentro de cada producto si es necesario
+    catalog.forEach(p => {
+        p.variants.sort((a, b) => a.name.localeCompare(b.name));
+    });
 
     return catalog;
 }
