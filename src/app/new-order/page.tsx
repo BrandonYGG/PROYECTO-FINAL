@@ -293,39 +293,44 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
     if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
     setIsSubmitting(true);
 
-    const mergedMaterials = mergeDuplicateMaterials(lastSubmittedData.materials);
-    const stockErrors = validateStock(mergedMaterials, materialsList);
-
-    if (stockErrors.length > 0) {
-        toast({
-            variant: "destructive",
-            title: "Error de Stock",
-            description: (
-                <div className="flex flex-col gap-1">
-                    {stockErrors.map((error, i) => <p key={i}>- {error}</p>)}
-                </div>
-            ),
-            duration: 7000,
-        });
-        setIsSubmitting(false);
-        return;
-    }
-    
     try {
+        // Combinar materiales duplicados
+        const mergedMaterials = mergeDuplicateMaterials(lastSubmittedData.materials);
+
+        // Validar stock disponible
+        const stockErrors = validateStock(mergedMaterials, materialsList);
+        if (stockErrors.length > 0) {
+            toast({
+                variant: "destructive",
+                title: "Error de Stock",
+                description: (
+                    <div className="flex flex-col gap-1">
+                        {stockErrors.map((error, i) => <p key={i}>- {error}</p>)}
+                    </div>
+                ),
+                duration: 7000,
+            });
+            setIsSubmitting(false);
+            return;
+        }
+
+        // Preparar materiales para RPC
         const materialsForRpc = mergedMaterials.map(m => {
             const materialInfo = materialsList.find(ml => ml.name === m.name);
             if (!materialInfo) throw new Error(`Datos del material ${m.name} no encontrados.`);
             return { id: materialInfo.id, quantity: m.quantity };
         });
-        
+
+        // Llamar RPC a Supabase sin JSON.stringify
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: JSON.stringify(materialsForRpc),
+            materials_to_decrement: materialsForRpc, // <- directamente como objeto/array
         });
 
         if (stockError) {
             throw new Error(stockError.message);
         }
 
+        // Construir objeto del pedido
         const orderData = { 
             ...lastSubmittedData, 
             materials: mergedMaterials,
@@ -341,6 +346,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             }
         };
 
+        // Guardar en Firestore
         const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
         const docRef = await addDoc(ordersCollectionRef, orderData)
             .catch((error) => {
@@ -352,14 +358,16 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                 }));
                 throw new Error("No se pudo guardar tu pedido después de validar el stock. Contacta a soporte.");
             });
-        
+
+        // Notificar a admins
         await notifyAdmins(docRef.id, orderData.projectName);
 
+        // Feedback al usuario
         toast({
             title: "Pedido Enviado",
             description: "Tu pedido se ha guardado correctamente.",
         });
-        
+
         setIsConfirmingLocation(false);
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
 
@@ -373,7 +381,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
     } finally {
         setIsSubmitting(false);
     }
-}
+};
 
   const handleUseCurrentLocation = () => {
     if ("geolocation" in navigator) {
