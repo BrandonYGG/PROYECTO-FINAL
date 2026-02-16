@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, query, where, getDocs, writeBatch, doc } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { useToast } from "@/hooks/use-toast";
@@ -229,8 +229,42 @@ const validateStock = (orderedMaterials: { name: string; quantity: number }[], a
     return errors;
 };
 
+const notifyAdmins = async (orderId: string, projectName: string) => {
+    if (!firestore) return;
+    try {
+        const usersRef = collection(firestore, 'users');
+        const q = query(usersRef, where('userType', '==', 'admin'));
+        const adminSnapshot = await getDocs(q);
 
-  const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
+        if (adminSnapshot.empty) {
+            console.log("No se encontraron usuarios administradores para notificar.");
+            return;
+        }
+        
+        const batch = writeBatch(firestore);
+        const notificationMessage = `Nuevo pedido para la obra "${projectName}" con ID: ${orderId}`;
+        
+        adminSnapshot.forEach(adminDoc => {
+            const notificationRef = doc(collection(firestore, 'users', adminDoc.id, 'notifications'));
+            batch.set(notificationRef, {
+                userId: adminDoc.id,
+                orderId: orderId,
+                message: notificationMessage,
+                read: false,
+                createdAt: serverTimestamp(),
+            });
+        });
+
+        await batch.commit();
+        console.log("Notificaciones de administrador enviadas exitosamente.");
+    } catch (error) {
+        // Esto fallará para los usuarios no administradores debido a las reglas de seguridad.
+        // Lo registramos pero no mostramos un toast al usuario, ya que la operación principal (creación del pedido) tuvo éxito.
+        console.warn("No se pudieron enviar las notificaciones de administrador. Esto es esperado para usuarios no administradores.", error);
+    }
+};
+
+const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
     if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
     setIsSubmitting(true);
 
@@ -249,23 +283,27 @@ const validateStock = (orderedMaterials: { name: string; quantity: number }[], a
             duration: 7000,
         });
         setIsSubmitting(false);
-        return; // Detiene el envío, pero mantiene el modal abierto
+        return;
     }
     
     try {
-        // 1. Validar y descontar stock en Supabase de forma atómica
+        const materialsForRpc = mergedMaterials.map(m => {
+            const materialInfo = materialsList.find(ml => ml.name === m.name);
+            if (!materialInfo) throw new Error(`Datos del material ${m.name} no encontrados.`);
+            return { id: materialInfo.id, quantity: m.quantity };
+        });
+        
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: mergedMaterials,
+            materials_to_decrement: materialsForRpc,
         });
 
         if (stockError) {
             throw new Error(stockError.message);
         }
 
-        // 2. Si el stock es correcto, guardar el pedido en Firestore
         const orderData = { 
             ...lastSubmittedData, 
-            materials: mergedMaterials, // Usar materiales unificados
+            materials: mergedMaterials,
             location: confirmedLocation,
             total,
             userId: user.uid,
@@ -282,7 +320,6 @@ const validateStock = (orderedMaterials: { name: string; quantity: number }[], a
         const docRef = await addDoc(ordersCollectionRef, orderData)
             .catch((error) => {
                 console.error("Error al guardar en Firestore:", error);
-                // Idealmente, se debería revertir el stock en Supabase (transacción de compensación)
                 errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: ordersCollectionRef.path,
                     operation: 'create',
@@ -290,11 +327,15 @@ const validateStock = (orderedMaterials: { name: string; quantity: number }[], a
                 }));
                 throw new Error("No se pudo guardar tu pedido después de validar el stock. Contacta a soporte.");
             });
+        
+        await notifyAdmins(docRef.id, orderData.projectName);
 
         toast({
             title: "Pedido Enviado",
             description: "Tu pedido se ha guardado correctamente.",
         });
+        
+        setIsConfirmingLocation(false);
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
 
     } catch (error: any) {
@@ -304,11 +345,9 @@ const validateStock = (orderedMaterials: { name: string; quantity: number }[], a
             title: "Error al Procesar el Pedido",
             description: error.message || "No se pudo completar la operación. Intenta de nuevo.",
         });
-    } finally {
         setIsSubmitting(false);
-        setIsConfirmingLocation(false);
     }
-  }
+}
 
   const handleUseCurrentLocation = () => {
     if ("geolocation" in navigator) {
