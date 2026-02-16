@@ -2,10 +2,11 @@ import { supabase } from './supabaseClient';
 
 export interface Material {
   id: number;
-  name: string;
-  price: number;
+  name: string; // Mapeado desde 'nombre' en Supabase
+  price: number; // Mapeado desde 'precio' en Supabase
   stock: number;
-  unit: string;
+  unit: string; // Mapeado desde 'categoria' en Supabase
+  description: string; // Mapeado desde 'descripcion' en Supabase
   created_at: string;
 }
 
@@ -24,7 +25,7 @@ export async function getMaterials(): Promise<Material[]> {
   // La consulta a Supabase usa los nombres de columna en español.
   const { data, error } = await supabase
     .from('materiales')
-    .select('id, nombre, precio, stock, unidad, created_at, categoria, descripcion')
+    .select('id, nombre, precio, stock, categoria, descripcion, created_at')
     .order('nombre', { ascending: true });
 
   if (error) {
@@ -42,7 +43,9 @@ export async function getMaterials(): Promise<Material[]> {
     name: item.nombre,
     price: item.precio,
     stock: item.stock,
-    unit: item.unidad, // Se asume que 'unit' en la app corresponde a 'unidad' en Supabase.
+    // NOTA: Se asume que 'categoria' puede funcionar como 'unit' (unidad) para la UI.
+    unit: item.categoria || '', 
+    description: item.descripcion || '',
     created_at: item.created_at,
   }));
 
@@ -58,6 +61,7 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
     
     const catalog = materials.reduce((acc, material) => {
         // Extrae el nombre base del material, ej: "Piedra" de "Piedra (Tonelada)"
+        // Esta lógica asume que los nombres de los materiales siguen un patrón de agrupación.
         const productName = material.name.split(' (')[0];
         const existing = acc.find(p => p.productName === productName);
         
