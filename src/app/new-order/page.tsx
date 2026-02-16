@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp, query, where, getDocs } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { useToast } from "@/hooks/use-toast";
@@ -197,30 +197,6 @@ export default function NewOrderPage() {
     }
   }
 
-  const notifyAdmins = async (order: any) => {
-    if (!firestore) return;
-    try {
-        const adminsQuery = query(collection(firestore, 'users'), where('userType', '==', 'admin'));
-        const adminSnapshot = await getDocs(adminsQuery);
-        
-        const notificationPromises = adminSnapshot.docs.map(adminDoc => {
-            const adminId = adminDoc.id;
-            const notificationRef = collection(firestore, 'users', adminId, 'notifications');
-            return addDoc(notificationRef, {
-                userId: adminId,
-                orderId: order.id,
-                message: `Se ha recibido un nuevo pedido para la obra "${order.projectName}".`,
-                read: false,
-                createdAt: serverTimestamp(),
-            });
-        });
-
-        await Promise.all(notificationPromises);
-    } catch (error) {
-        console.error("Error al notificar a los administradores:", error);
-    }
-};
-
 const mergeDuplicateMaterials = (materials: { name: string; quantity: number }[]) => {
     const merged = materials.reduce((acc, material) => {
       if (!material.name) return acc; // Ignorar entradas vacías
@@ -315,12 +291,9 @@ const validateStock = (orderedMaterials: { name: string; quantity: number }[], a
                 throw new Error("No se pudo guardar tu pedido después de validar el stock. Contacta a soporte.");
             });
 
-        // 3. Notificar a los administradores
-        await notifyAdmins({ id: docRef.id, ...orderData });
-
         toast({
             title: "Pedido Enviado",
-            description: "Tu pedido se ha guardado correctamente y los administradores han sido notificados.",
+            description: "Tu pedido se ha guardado correctamente.",
         });
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
 
