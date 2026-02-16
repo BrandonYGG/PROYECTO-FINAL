@@ -321,9 +321,9 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             return { id: materialInfo.id, quantity: m.quantity };
         });
 
-        // Llamar RPC a Supabase sin JSON.stringify
+        // Llamar RPC a Supabase con JSON.stringify para resolver ambigüedad
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: materialsForRpc, // <- directamente como objeto/array
+            materials_to_decrement: JSON.stringify(materialsForRpc),
         });
 
         if (stockError) {
