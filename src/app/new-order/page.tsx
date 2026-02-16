@@ -321,9 +321,24 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             return { id: materialInfo.id, quantity: m.quantity };
         });
 
+        // Verificar que materialsForRpc no esté vacío.
+        if (!materialsForRpc || materialsForRpc.length === 0) {
+            console.error("Error: No hay materiales para enviar a la RPC de Supabase.");
+            toast({
+                variant: "destructive",
+                title: "Error Interno",
+                description: "No se seleccionaron materiales para procesar.",
+            });
+            setIsSubmitting(false);
+            return;
+        }
+
+        // Asegurarse de que es un array (aunque .map ya lo garantiza)
+        const materialsPayload = Array.isArray(materialsForRpc) ? materialsForRpc : [materialsForRpc];
+
         // Llamar RPC a Supabase con JSON.stringify para resolver ambigüedad
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: JSON.stringify(materialsForRpc),
+            materials_to_decrement: JSON.stringify(materialsPayload),
         });
 
         if (stockError) {
