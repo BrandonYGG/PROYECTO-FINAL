@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  devServer: {
+    allowedDevOrigins: [
+        'https://6000-firebase-tlapalera-sup-1771204676241.cluster-j6d3cbsvdbe5uxnhqrfzzeyj7i.cloudworkstations.dev'
+    ]
+  }
 };
 
 export default nextConfig;
