@@ -133,6 +133,31 @@ export default function NewOrderPage() {
     }
     fetchMaterials();
   }, []);
+  
+  useEffect(() => {
+    const subscription = form.watch((value, { name, type }) => {
+      // Check if a material name was changed
+      if (type === 'change' && name && name.startsWith('materials') && name.endsWith('.name')) {
+        const index = parseInt(name.split('.')[1], 10);
+        const materialItem = value.materials?.[index];
+        
+        if (materialItem) {
+          const selectedMaterial = materialsList.find(m => m.name === materialItem.name);
+          const currentQuantity = materialItem.quantity;
+
+          if (selectedMaterial && currentQuantity > selectedMaterial.stock) {
+            form.setValue(`materials.${index}.quantity`, selectedMaterial.stock);
+            toast({
+              variant: 'default',
+              title: 'Cantidad Ajustada',
+              description: `Se ajustó la cantidad de "${selectedMaterial.name}" al stock disponible de ${selectedMaterial.stock} unidades.`,
+            });
+          }
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, materialsList, toast]);
 
 
   useEffect(() => {
@@ -345,6 +370,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             title: "Error al Procesar el Pedido",
             description: error.message || "No se pudo completar la operación. Intenta de nuevo.",
         });
+    } finally {
         setIsSubmitting(false);
     }
 }
@@ -648,7 +674,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                         name={`materials.${index}.name`}
                         render={({ field }) => (
                           <FormItem className="md:col-span-3">
-                            <FormLabel htmlFor={`materials.${index}.name`}>Material ({selectedMaterialInfo?.stock || 0} disp.)</FormLabel>
+                            <FormLabel htmlFor={`materials.${index}.name`}>Material ({selectedMaterialInfo?.stock || '0'} disp.)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isMaterialsLoading}>
                               <FormControl>
                                 <SelectTrigger id={`materials.${index}.name`}>
@@ -657,7 +683,14 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                               </FormControl>
                               <SelectContent>
                                 {materialsList.map(material => (
-                                  <SelectItem key={material.name} value={material.name} className="capitalize">{material.name}</SelectItem>
+                                  <SelectItem 
+                                    key={material.id} 
+                                    value={material.name} 
+                                    className={cn("capitalize", material.stock === 0 && "text-muted-foreground line-through")}
+                                    disabled={material.stock === 0}
+                                  >
+                                    {material.name} ({material.stock} disp.)
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -689,7 +722,30 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                                 placeholder="0"
                                 {...field}
                                 value={field.value as number}
-                                onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  const newQuantity = value === '' ? '' : Number(value);
+                                
+                                  if (newQuantity === '') {
+                                    field.onChange('');
+                                    return;
+                                  }
+                                
+                                  const selectedMaterialName = form.getValues(`materials.${index}.name`);
+                                  if (selectedMaterialName) {
+                                    const materialInfo = materialsList.find(m => m.name === selectedMaterialName);
+                                    if (materialInfo && newQuantity > materialInfo.stock) {
+                                      toast({
+                                        variant: "destructive",
+                                        title: "Stock insuficiente",
+                                        description: `Solo quedan ${materialInfo.stock} unidades de este material.`,
+                                      });
+                                      return; // Previene la actualización
+                                    }
+                                  }
+                                  
+                                  field.onChange(newQuantity);
+                                }}
                               />
                             </FormControl>
                             <FormMessage />
