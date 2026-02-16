@@ -283,9 +283,9 @@ const notifyAdmins = async (orderId: string, projectName: string) => {
         await batch.commit();
         console.log("Notificaciones de administrador enviadas exitosamente.");
     } catch (error) {
-        // Esto fallará para los usuarios no administradores debido a las reglas de seguridad.
-        // Lo registramos pero no mostramos un toast al usuario, ya que la operación principal (creación del pedido) tuvo éxito.
-        console.warn("No se pudieron enviar las notificaciones de administrador. Esto es esperado para usuarios no administradores.", error);
+        // This will fail for non-admin users due to security rules.
+        // We log it but don't show a toast to the user, as the main operation (order creation) succeeded.
+        console.warn("Could not send admin notifications. This is expected for non-admin users.", error);
     }
 };
 
@@ -319,7 +319,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
         });
         
         const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: materialsForRpc,
+            materials_to_decrement: JSON.stringify(materialsForRpc),
         });
 
         if (stockError) {
