@@ -55,7 +55,7 @@ const galleryImages = [
   {
     src: '/images/varilla-4.jpeg',
     alt: 'Estructura de varillas en construcción',
-    title: 'Refuerzo Estructural',
+    title: 'Varilla',
     description: 'Armado de columnas y trabes con varilla de alta resistencia.',
   },
   {
