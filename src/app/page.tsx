@@ -85,7 +85,7 @@ const galleryImages = [
   {
     src: '/images/mortero-azul-2.jpeg',
     alt: 'Acabado de mortero azul en alberca',
-    title: 'Albercas de Ensueño',
+    title: 'Mortero Cruz Azul',
     description: 'Mortero especializado para acabados impermeables y estéticos en albercas.',
   },
 ];
