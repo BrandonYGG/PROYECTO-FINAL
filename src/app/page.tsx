@@ -61,7 +61,7 @@ const galleryImages = [
   {
     src: '/images/Block-5.jpeg',
     alt: 'Albañil colocando blocks de concreto',
-    title: 'Muros Firmes y Seguros',
+    title: 'Block',
     description: 'Construcción de muros con block de concreto para una cimentación sólida.',
   },
   {
