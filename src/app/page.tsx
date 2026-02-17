@@ -51,6 +51,46 @@ const featuredQualities = [
     },
 ];
 
+const galleryImages = [
+  {
+    src: '/images/varilla-4.jpeg',
+    alt: 'Estructura de varillas en construcción',
+    title: 'Refuerzo Estructural',
+    description: 'Armado de columnas y trabes con varilla de alta resistencia.',
+  },
+  {
+    src: '/images/Block-5.jpeg',
+    alt: 'Albañil colocando blocks de concreto',
+    title: 'Muros Firmes y Seguros',
+    description: 'Construcción de muros con block de concreto para una cimentación sólida.',
+  },
+  {
+    src: '/images/malla-electrosoldada-3.jpeg',
+    alt: 'Aplicación de malla electrosoldada en piso',
+    title: 'Pisos y Losas Reforzadas',
+    description: 'Malla electrosoldada para garantizar la durabilidad de superficies.',
+  },
+  {
+    src: '/images/piedras-7.jpeg',
+    alt: 'Muro de piedra decorativo',
+    title: 'Acabados con Identidad',
+    description: 'Muros de piedra natural que añaden un toque rústico y elegante.',
+  },
+  {
+    src: '/images/PVC-3.jpeg',
+    alt: 'Instalación de tubería de PVC',
+    title: 'Instalaciones Hidráulicas',
+    description: 'Tubería de PVC para sistemas de agua potable y drenaje eficientes.',
+  },
+  {
+    src: '/images/mortero-azul-2.jpeg',
+    alt: 'Acabado de mortero azul en alberca',
+    title: 'Albercas de Ensueño',
+    description: 'Mortero especializado para acabados impermeables y estéticos en albercas.',
+  },
+];
+
+
 export default async function Home() {
   const productCatalog = await getProductCatalog();
   const featuredProducts = productCatalog; // Mostrar todos los productos disponibles
@@ -137,6 +177,44 @@ export default async function Home() {
                   <p className="text-muted-foreground">
                     {reason.description}
                   </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="gallery" className="py-20 md:py-28 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-headline font-bold">
+              Nuestros Materiales en la Obra
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Calidad que se ve y se siente. Un vistazo a cómo nuestros productos transforman proyectos en realidades duraderas.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {galleryImages.map((image, index) => (
+              <Card 
+                key={index} 
+                className="overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
+                style={{ animationDelay: `${150 * (index + 1)}ms` }}
+              >
+                <CardHeader className="p-0">
+                   <div className="overflow-hidden">
+                    <Image
+                      src={image.src}
+                      alt={image.alt}
+                      width={400}
+                      height={300}
+                      className="object-cover w-full h-56 transition-transform duration-500 ease-in-out group-hover:scale-110"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <CardTitle className="text-xl font-headline">{image.title}</CardTitle>
+                  <CardDescription className="mt-2 text-sm">{image.description}</CardDescription>
                 </CardContent>
               </Card>
             ))}
