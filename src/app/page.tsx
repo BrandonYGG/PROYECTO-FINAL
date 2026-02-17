@@ -243,7 +243,7 @@ export default async function Home() {
                   style={{ animationDelay: `${100 * (index + 1)}ms` }}
                 >
                   {productImages.length > 0 ? (
-                    <CardHeader className="p-0">
+                    <CardHeader className="p-0 relative">
                       <Carousel className="w-full">
                         <CarouselContent>
                           {productImages.map((image, i) => (
