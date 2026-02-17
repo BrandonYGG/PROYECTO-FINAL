@@ -73,7 +73,7 @@ const galleryImages = [
   {
     src: '/images/piedras-7.jpeg',
     alt: 'Muro de piedra decorativo',
-    title: 'Acabados con Identidad',
+    title: 'Adoquin',
     description: 'Muros de piedra natural que añaden un toque rústico y elegante.',
   },
   {
