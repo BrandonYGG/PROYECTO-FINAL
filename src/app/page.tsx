@@ -62,7 +62,7 @@ const galleryImages = [
     src: '/images/Block-5.jpeg',
     alt: 'Albañil colocando blocks de concreto',
     title: 'Block',
-    description: 'Construcción de muros con block de concreto para una cimentación sólida.',
+    description: '"Construye sólido, con el block que te da la base." "Consigue el acabado perfecto de acuerdo a tus necesidades, desde el color soñado a la textura deseada: ✅ Ligero ✅ Pesado ✅ Hueco',
   },
   {
     src: '/images/malla-electrosoldada-3.jpeg',
