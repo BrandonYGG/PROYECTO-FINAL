@@ -111,7 +111,7 @@ export default async function Home() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-transparent" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 animate-slide-in-up animation-delay-300">
           <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight text-shadow-lg">
-            Construye Sólido, Construye con Nosotros
+            Construye con nosotros, ¡nunca dejes de construir con nuestros materiales!
           </h1>
           <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto text-primary-foreground/90">
             Tu aliado en materiales de construcción de alta calidad. Desde los cimientos hasta los acabados, tenemos todo para tu proyecto.
