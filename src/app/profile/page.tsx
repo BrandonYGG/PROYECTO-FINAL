@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { User, Mail, Phone, LogOut, PackagePlus, Shield, Users, Briefcase, Database } from "lucide-react";
+import { User, Mail, Phone, LogOut, PackagePlus, Shield, Users, Briefcase, Database, BrainCircuit, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, useUser, useFirestore } from "@/firebase";
@@ -173,21 +173,47 @@ export default function ProfilePage() {
         </div>
 
         <div className="md:col-span-2 space-y-8">
-            <div className="grid grid-cols-1">
-                <Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Card className="hover:shadow-md transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Nuevo Pedido</CardTitle>
                         <PackagePlus className="h-5 w-5 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <Button asChild className="mt-4">
+                        <Button asChild className="w-full mt-4">
                             <Link href="/new-order">
                                 Crear un nuevo pedido
                             </Link>
                         </Button>
                     </CardContent>
                 </Card>
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Asistente IA</CardTitle>
+                        <BrainCircuit className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <Button asChild variant="outline" className="w-full mt-4 border-primary text-primary hover:bg-primary/10 font-bold">
+                            <a href="https://tlapaia.netlify.app/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                                <BrainCircuit className="h-4 w-4" />
+                                Cotización IA
+                                <ExternalLink className="h-3 w-3 opacity-70" />
+                            </a>
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
+
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-start gap-3 text-sm sm:text-base animate-pulse-subtle">
+                <Phone className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                <p className="text-muted-foreground">
+                    <span className="font-bold text-foreground">¿Necesitas ayuda?</span> Para cancelar un pedido comunícate a este número: 
+                    <a href="tel:+5215581536176" className="ml-1 font-bold text-primary hover:underline inline-flex items-center gap-1">
+                        +52 1 55 8153 6176
+                    </a>
+                </p>
+            </div>
+
             <UserOrderList />
         </div>
       </div>
