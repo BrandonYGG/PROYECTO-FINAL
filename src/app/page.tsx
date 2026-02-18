@@ -80,7 +80,7 @@ const galleryImages = [
     src: '/images/PVC-3.jpeg',
     alt: 'Instalación de tubería de PVC',
     title: 'Instalaciones Hidráulicas',
-    description: 'Tubería de PVC para sistemas de agua potable y drenaje eficientes.',
+    description: 'La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad',
   },
   {
     src: '/images/mortero-azul-2.jpeg',
