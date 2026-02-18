@@ -74,19 +74,19 @@ const galleryImages = [
     src: '/images/piedras-7.jpeg',
     alt: 'Muro de piedra decorativo',
     title: 'Adoquin',
-    description: 'Muros de piedra natural que añaden un toque rústico y elegante.',
+    description: 'Construye con la solidez de la tierra, camina con la confianza de lo que dura.',
   },
   {
     src: '/images/PVC-3.jpeg',
     alt: 'Instalación de tubería de PVC',
     title: 'Instalaciones Hidráulicas',
-    description: 'La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad',
+    description: 'La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad.',
   },
   {
     src: '/images/mortero-azul-2.jpeg',
     alt: 'Acabado de mortero azul en alberca',
     title: 'Mortero Azul',
-    description: 'Mortero especializado para acabados impermeables y estéticos en albercas.',
+    description: 'Une lo mejor, con el mortero perfecto de las mejores marcas.',
   },
 ];
 
@@ -330,7 +330,7 @@ export default async function Home() {
             Así Nace la Calidad: La Fabricación de Nuestros Blocks
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            Un vistazo exclusivo a nuestro proceso de fabricación, donde la resistencia y la precisión se unen para crear la base de tu proyecto.
+            La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad
           </p>
           <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
             <video
