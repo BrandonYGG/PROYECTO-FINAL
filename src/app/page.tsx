@@ -68,7 +68,7 @@ const galleryImages = [
     src: '/images/malla-electrosoldada-3.jpeg',
     alt: 'Aplicación de malla electrosoldada en piso',
     title: 'Malla Electrosoldada',
-    description: 'Malla electrosoldada para garantizar la durabilidad de superficies.',
+    description: '¡Calibres que unen! Malla electrosoldada para construir tu futuro',
   },
   {
     src: '/images/piedras-7.jpeg',
