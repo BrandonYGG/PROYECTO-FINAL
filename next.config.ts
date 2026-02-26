@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -11,6 +10,12 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'zdqnrbnyftjwgraabvsn.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
       {
         protocol: 'https',
         hostname: 'placehold.co',

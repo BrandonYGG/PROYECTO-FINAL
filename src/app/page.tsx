@@ -1,4 +1,3 @@
-
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react';
@@ -90,10 +89,9 @@ const galleryImages = [
   },
 ];
 
-
 export default async function Home() {
   const productCatalog = await getProductCatalog();
-  const featuredProducts = productCatalog; // Mostrar todos los productos disponibles
+  const featuredProducts = productCatalog;
 
   return (
     <div className="flex flex-col animate-fade-in">
@@ -202,13 +200,12 @@ export default async function Home() {
                 style={{ animationDelay: `${150 * (index + 1)}ms` }}
               >
                 <CardHeader className="p-0">
-                   <div className="overflow-hidden">
+                   <div className="relative overflow-hidden w-full h-56">
                     <Image
                       src={image.src}
                       alt={image.alt}
-                      width={400}
-                      height={300}
-                      className="object-cover w-full h-56 transition-transform duration-500 ease-in-out group-hover:scale-110"
+                      fill
+                      className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
                     />
                   </div>
                 </CardHeader>
@@ -234,6 +231,7 @@ export default async function Home() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {featuredProducts.map((product, index) => {
+              const dbImageUrl = product.variants[0]?.imageUrl;
               const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
               
               return (
@@ -242,20 +240,30 @@ export default async function Home() {
                   className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
                   style={{ animationDelay: `${100 * (index + 1)}ms` }}
                 >
-                  {productImages.length > 0 ? (
-                    <CardHeader className="p-0 relative">
+                  <CardHeader className="p-0 relative">
+                    {dbImageUrl ? (
+                      <div className="relative w-full h-48">
+                        <Image
+                          src={dbImageUrl}
+                          alt={product.productName}
+                          fill
+                          className="object-cover bg-muted"
+                        />
+                      </div>
+                    ) : productImages.length > 0 ? (
                       <Carousel className="w-full">
                         <CarouselContent>
                           {productImages.map((image, i) => (
                             <CarouselItem key={i}>
-                              <Image
-                                src={image.imageUrl}
-                                alt={product.productName}
-                                width={400}
-                                height={300}
-                                className="object-cover w-full h-48 bg-muted"
-                                data-ai-hint={image.imageHint}
-                              />
+                              <div className="relative w-full h-48">
+                                <Image
+                                  src={image.imageUrl}
+                                  alt={product.productName}
+                                  fill
+                                  className="object-cover bg-muted"
+                                  data-ai-hint={image.imageHint}
+                                />
+                              </div>
                             </CarouselItem>
                           ))}
                         </CarouselContent>
@@ -266,21 +274,21 @@ export default async function Home() {
                           </>
                         )}
                       </Carousel>
-                    </CardHeader>
-                  ) : (
-                    <div className="w-full h-48 bg-muted flex items-center justify-center">
-                       <Image
-                          src={'/images/placeholder.png'}
-                          alt={product.productName}
-                          width={400}
-                          height={300}
-                          className="object-cover w-full h-48 bg-muted"
-                        />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="relative w-full h-48 bg-muted flex items-center justify-center">
+                         <Image
+                            src={'/images/placeholder.png'}
+                            alt={product.productName}
+                            width={400}
+                            height={300}
+                            className="object-cover w-full h-48"
+                          />
+                      </div>
+                    )}
+                  </CardHeader>
                   <CardContent className="p-6 flex-grow">
                     <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
-                    <CardDescription className="mt-2 text-sm">{productImages[0]?.description || `Material de construcción: ${product.productName}`}</CardDescription>
+                    <CardDescription className="mt-2 text-sm">{product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`}</CardDescription>
                   </CardContent>
                 </Card>
               );

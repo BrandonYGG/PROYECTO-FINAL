@@ -27,13 +27,8 @@ export interface ProductCatalogItem {
   variants: PublicMaterial[];
 }
 
-// Alias para mantener compatibilidad con el resto de la aplicación
 export type Material = PublicMaterial;
 
-/**
- * Obtiene los materiales para la vista pública de clientes.
- * Filtra información sensible como costos y metadatos internos.
- */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   const { data, error } = await supabase
     .from('materiales')
@@ -55,10 +50,6 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   }));
 }
 
-/**
- * Obtiene los materiales con información completa para el panel de administración.
- * Incluye costos y fechas de creación.
- */
 export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   const { data, error } = await supabase
     .from('materiales')
@@ -82,16 +73,10 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   }));
 }
 
-/**
- * Función wrapper para mantener compatibilidad con componentes existentes.
- */
 export async function getMaterials(): Promise<PublicMaterial[]> {
   return getPublicMaterials();
 }
 
-/**
- * Obtiene el catálogo agrupado para la tienda pública.
- */
 export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 

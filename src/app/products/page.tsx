@@ -1,4 +1,3 @@
-
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -21,8 +20,9 @@ export default async function ProductsPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {productCatalog.map((product, index) => {
+          const dbImageUrl = product.variants[0]?.imageUrl;
           const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
-          const description = productImages[0]?.description || `Material de construcción: ${product.productName}`;
+          const description = product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`;
 
           return (
             <Card 
@@ -30,20 +30,30 @@ export default async function ProductsPage() {
               className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
               style={{ animationDelay: `${100 * (index + 1)}ms` }}
             >
-              {productImages.length > 0 ? (
-                <CardHeader className="p-0 relative">
+              <CardHeader className="p-0 relative">
+                {dbImageUrl ? (
+                  <div className="relative w-full h-48">
+                    <Image
+                      src={dbImageUrl}
+                      alt={product.productName}
+                      fill
+                      className="object-cover bg-muted"
+                    />
+                  </div>
+                ) : productImages.length > 0 ? (
                   <Carousel className="w-full">
                     <CarouselContent>
                       {productImages.map((image, i) => (
                         <CarouselItem key={i}>
-                          <Image
-                            src={image.imageUrl}
-                            alt={product.productName}
-                            width={400}
-                            height={300}
-                            className="object-cover w-full h-48 bg-muted"
-                            data-ai-hint={image.imageHint}
-                          />
+                          <div className="relative w-full h-48">
+                            <Image
+                              src={image.imageUrl}
+                              alt={product.productName}
+                              fill
+                              className="object-cover bg-muted"
+                              data-ai-hint={image.imageHint}
+                            />
+                          </div>
                         </CarouselItem>
                       ))}
                     </CarouselContent>
@@ -54,18 +64,18 @@ export default async function ProductsPage() {
                       </>
                     )}
                   </Carousel>
-                </CardHeader>
-              ): (
-                 <div className="w-full h-48 bg-muted flex items-center justify-center">
+                ) : (
+                  <div className="relative w-full h-48 bg-muted flex items-center justify-center">
                     <Image
                       src={'/images/placeholder.png'}
                       alt={product.productName}
                       width={400}
                       height={300}
-                      className="object-cover w-full h-48 bg-muted"
+                      className="object-cover w-full h-48"
                     />
-                </div>
-              )}
+                  </div>
+                )}
+              </CardHeader>
               <CardContent className="p-6 flex flex-col flex-grow">
                 <CardTitle className="text-2xl font-bold capitalize font-headline">{product.productName}</CardTitle>
                 <CardDescription className="mt-2 flex-grow">{description}</CardDescription>
@@ -73,7 +83,7 @@ export default async function ProductsPage() {
                 <div className='mt-4 flex-grow space-y-2'>
                   <p className='text-sm font-semibold text-muted-foreground'>Presentaciones:</p>
                   {product.variants.map((variant: Material) => (
-                    <div key={variant.name} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-muted/50">
+                    <div key={variant.id} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-muted/50">
                       <span className='capitalize font-medium'>{variant.unit} ({variant.stock} disponibles)</span>
                       <Badge variant={"secondary"}>
                         ${variant.price.toFixed(2)}
