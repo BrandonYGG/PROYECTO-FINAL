@@ -29,6 +29,7 @@ import { reverseGeocode } from "../actions/reverse-geocode-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getMaterials, type Material } from "@/lib/materials";
 import { supabase } from "@/lib/supabaseClient";
+import Image from "next/image";
 
 
 const materialOrderSchema = z.object({
@@ -720,7 +721,21 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                                     className={cn("capitalize", material.stock === 0 && "text-muted-foreground line-through")}
                                     disabled={material.stock === 0}
                                   >
-                                    {material.name} ({material.stock} disp.)
+                                    <div className="flex items-center gap-3 py-1">
+                                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-muted">
+                                        <Image
+                                          src={material.imageUrl || '/images/placeholder.png'}
+                                          alt={material.name}
+                                          fill
+                                          className="object-cover"
+                                          unoptimized={!!material.imageUrl}
+                                        />
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{material.name}</span>
+                                        <span className="text-[10px] text-muted-foreground">{material.stock} disp.</span>
+                                      </div>
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
