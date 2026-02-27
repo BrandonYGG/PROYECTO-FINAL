@@ -29,6 +29,10 @@ export interface ProductCatalogItem {
 
 export type Material = PublicMaterial;
 
+/**
+ * Obtiene los materiales para la vista pública del cliente.
+ * Solo incluye información necesaria y segura.
+ */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   const { data, error } = await supabase
     .from('materiales')
@@ -50,6 +54,10 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   }));
 }
 
+/**
+ * Obtiene los materiales para la vista de administrador.
+ * Incluye costos y fechas de creación.
+ */
 export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   const { data, error } = await supabase
     .from('materiales')
@@ -73,10 +81,16 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   }));
 }
 
+/**
+ * Función de utilidad para obtener materiales (alias de getPublicMaterials)
+ */
 export async function getMaterials(): Promise<PublicMaterial[]> {
   return getPublicMaterials();
 }
 
+/**
+ * Agrupa los materiales por nombre base para el catálogo.
+ */
 export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 
