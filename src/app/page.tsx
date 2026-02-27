@@ -4,7 +4,7 @@ import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getProductCatalog, ProductCatalogItem } from '@/lib/materials';
+import { getProductCatalog } from '@/lib/materials';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -231,7 +231,7 @@ export default async function Home() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {featuredProducts.map((product, index) => {
-              const dbImageUrl = product.variants[0]?.imageUrl;
+              const dbImageUrl = product.variants.find(v => v.imageUrl)?.imageUrl;
               const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
               
               return (
@@ -248,6 +248,7 @@ export default async function Home() {
                           alt={product.productName}
                           fill
                           className="object-cover bg-muted"
+                          unoptimized
                         />
                       </div>
                     ) : productImages.length > 0 ? (

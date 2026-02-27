@@ -20,7 +20,8 @@ export default async function ProductsPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {productCatalog.map((product, index) => {
-          const dbImageUrl = product.variants[0]?.imageUrl;
+          // Buscamos si alguna variante tiene imagen de la base de datos
+          const dbImageUrl = product.variants.find(v => v.imageUrl)?.imageUrl;
           const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
           const description = product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`;
 
@@ -38,6 +39,7 @@ export default async function ProductsPage() {
                       alt={product.productName}
                       fill
                       className="object-cover bg-muted"
+                      unoptimized // Importante para URLs externas de Supabase
                     />
                   </div>
                 ) : productImages.length > 0 ? (

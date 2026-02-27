@@ -31,59 +31,60 @@ export type Material = PublicMaterial;
 
 /**
  * Obtiene los materiales para la vista pública del cliente.
- * Solo incluye información necesaria y segura.
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
-  const { data, error } = await supabase
-    .from('materiales')
-    .select('id, nombre, precio, stock, categoria, descripcion, image_url')
-    .order('nombre', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('materiales')
+      .select('id, nombre, precio, stock, categoria, descripcion, image_url')
+      .order('nombre', { ascending: true });
 
-  if (error) {
+    if (error) throw error;
+
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.nombre,
+      price: item.precio,
+      stock: item.stock,
+      unit: item.categoria || '',
+      description: item.descripcion || '',
+      imageUrl: item.image_url || null, // Aseguramos que se mapee correctamente
+    }));
+  } catch (error) {
+    console.error("Error fetching materials:", error);
     return [];
   }
-
-  return (data || []).map(item => ({
-    id: item.id,
-    name: item.nombre,
-    price: item.precio,
-    stock: item.stock,
-    unit: item.categoria || '',
-    description: item.descripcion || '',
-    imageUrl: item.image_url || null,
-  }));
 }
 
 /**
  * Obtiene los materiales para la vista de administrador.
- * Incluye costos y fechas de creación.
  */
 export async function getAdminMaterials(): Promise<AdminMaterial[]> {
-  const { data, error } = await supabase
-    .from('materiales')
-    .select('id, nombre, precio, stock, categoria, descripcion, image_url, cost, created_at')
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('materiales')
+      .select('id, nombre, precio, stock, categoria, descripcion, image_url, cost, created_at')
+      .order('created_at', { ascending: false });
 
-  if (error) {
+    if (error) throw error;
+
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.nombre,
+      price: item.precio,
+      stock: item.stock,
+      unit: item.categoria || '',
+      description: item.descripcion || '',
+      imageUrl: item.image_url || null,
+      cost: item.cost || 0,
+      createdAt: item.created_at,
+    }));
+  } catch (error) {
+    console.error("Error fetching admin materials:", error);
     return [];
   }
-
-  return (data || []).map(item => ({
-    id: item.id,
-    name: item.nombre,
-    price: item.precio,
-    stock: item.stock,
-    unit: item.categoria || '',
-    description: item.descripcion || '',
-    imageUrl: item.image_url || null,
-    cost: item.cost || 0,
-    createdAt: item.created_at,
-  }));
 }
 
-/**
- * Función de utilidad para obtener materiales (alias de getPublicMaterials)
- */
 export async function getMaterials(): Promise<PublicMaterial[]> {
   return getPublicMaterials();
 }
@@ -95,7 +96,8 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 
   const catalog = materials.reduce((acc, material) => {
-    const productName = material.name.split(' (')[0];
+    // Agrupar por nombre antes del paréntesis para manejar variantes (ej. "Varilla (3/8)")
+    const productName = material.name.split(' (')[0].trim();
     const existing = acc.find(p => p.productName === productName);
 
     if (existing) {
@@ -109,6 +111,7 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
     return acc;
   }, [] as ProductCatalogItem[]);
 
+  // Ordenar variantes por nombre dentro de cada grupo
   catalog.forEach(p => {
     p.variants.sort((a, b) => a.name.localeCompare(b.name));
   });
