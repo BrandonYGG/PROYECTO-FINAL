@@ -650,7 +650,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                       <Select onValueChange={(value) => {
                           field.onChange(value);
                           handleStateChange(value);
-                        }} defaultValue={field.value}>
+                        }} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona un estado" />
@@ -707,14 +707,14 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                         render={({ field }) => (
                           <FormItem className="md:col-span-3">
                             <FormLabel htmlFor={`materials.${index}.name`}>Material ({selectedMaterialInfo?.stock || '0'} disp.)</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isMaterialsLoading}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isMaterialsLoading}>
                               <FormControl>
                                 <SelectTrigger id={`materials.${index}.name`}>
                                   <SelectValue placeholder="Selecciona" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {materialsList.map(material => (
+                                {materialsList.filter(m => m.name).map(material => (
                                   <SelectItem 
                                     key={material.id} 
                                     value={material.name} 
