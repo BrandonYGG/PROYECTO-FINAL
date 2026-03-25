@@ -17,7 +17,6 @@ import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import { DeliveryMap } from '@/components/maps/delivery-map';
 import { Badge } from '@/components/ui/badge';
 import { getMaterials, type Material } from '@/lib/materials';
 
@@ -48,7 +47,6 @@ function OrderSummaryContent() {
   const orderId = searchParams.get('orderId');
 
   const orderDocRef = useMemoFirebase(() => {
-    // El administrador puede pasar cualquier userId, el usuario normal solo puede usar el suyo
     const effectiveUserId = user?.uid === userId || user?.providerData.some(p => p.providerId === 'admin') ? userId : user?.uid;
     return (effectiveUserId && orderId) ? doc(firestore, 'users', effectiveUserId, 'orders', orderId) : null;
   }, [firestore, orderId, userId, user]);
@@ -59,7 +57,6 @@ function OrderSummaryContent() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 
   useEffect(() => {
@@ -79,7 +76,7 @@ function OrderSummaryContent() {
   
     try {
       const doc = new jsPDF();
-      let lastY = 20; // Initial Y position
+      let lastY = 20;
   
       // --- Encabezado ---
       doc.setFont('helvetica', 'bold');
@@ -91,9 +88,10 @@ function OrderSummaryContent() {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       const details = [
+        { title: 'Folio:', content: orderData.id },
         { title: 'Solicitante:', content: orderData.requesterName },
         { title: 'Obra:', content: orderData.projectName },
-        { title: 'Dirección:', content: `${orderData.street} ${orderData.number}, ${orderData.colony}, ${orderData.municipality}, ${orderData.state}, C.P. ${orderData.postalCode}` },
+        { title: 'Dirección de Entrega:', content: `${orderData.street} ${orderData.number}, ${orderData.colony}, ${orderData.municipality}, ${orderData.state}, C.P. ${orderData.postalCode}` },
         { title: 'Teléfono:', content: orderData.phone },
       ];
       doc.autoTable({
@@ -104,32 +102,6 @@ function OrderSummaryContent() {
         columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 }, 1: { cellWidth: 'auto' } },
       });
       lastY = (doc as any).lastAutoTable.finalY + 10;
-  
-      // --- Mapa de Ubicación ---
-      if (orderData.location) {
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Ubicación de Entrega', 14, lastY);
-        lastY += 5;
-        const { lat, lng } = orderData.location;
-        const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=600x300&maptype=roadmap&markers=color:red%7C${lat},${lng}&key=${mapsApiKey}`;
-        try {
-          const response = await fetch(mapUrl);
-          const imageBlob = await response.blob();
-          const reader = new FileReader();
-          reader.readAsDataURL(imageBlob);
-          await new Promise<void>(resolve => {
-            reader.onloadend = () => {
-              doc.addImage(reader.result as string, 'PNG', 14, lastY, 180, 70);
-              lastY += 75;
-              resolve();
-            };
-          });
-        } catch (mapError) {
-          console.error("Error fetching static map:", mapError);
-          lastY += 5; // Add some space even if map fails
-        }
-      }
   
       // --- Detalles del Pedido (Tabla) ---
       doc.setFontSize(12);
@@ -181,7 +153,6 @@ function OrderSummaryContent() {
         const pdfWidth = doc.internal.pageSize.getWidth() - 28;
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         doc.addImage(imgData, 'PNG', 14, lastY, pdfWidth, pdfHeight);
-        lastY += pdfHeight + 10;
       }
   
       doc.save(`pedido-${orderData.projectName.replace(/\s/g, '_') || 'resumen'}.pdf`);
@@ -215,7 +186,6 @@ function OrderSummaryContent() {
     materials,
     deliveryDates,
     total,
-    location,
     status
   } = orderData;
   
@@ -265,11 +235,8 @@ function OrderSummaryContent() {
                       <p>{phone}</p>
                   </div>
                   <div className="space-y-2">
-                      <h3 className="font-bold uppercase text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Ubicación de Entrega:</h3>
-                      <p>{fullAddress}</p>
-                       <div className="h-[250px] w-full rounded-lg overflow-hidden border">
-                          <DeliveryMap apiKey={mapsApiKey} address={fullAddress} initialCoordinates={location} />
-                       </div>
+                      <h3 className="font-bold uppercase text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Dirección de Entrega:</h3>
+                      <p className="text-lg font-medium">{fullAddress}</p>
                   </div>
               </div>
 

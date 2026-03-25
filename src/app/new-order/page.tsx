@@ -24,9 +24,7 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
-import { DeliveryMap } from "@/components/maps/delivery-map";
 import { reverseGeocode } from "../actions/reverse-geocode-actions";
-import { Checkbox } from "@/components/ui/checkbox";
 import { getMaterials, type Material } from "@/lib/materials";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
@@ -91,14 +89,6 @@ export default function NewOrderPage() {
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
 
-  const [isConfirmingLocation, setIsConfirmingLocation] = useState(false);
-  const [geocodedLocation, setGeocodedLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [lastSubmittedData, setLastSubmittedData] = useState<OrderFormData | null>(null);
-  const [calculatedPriority, setCalculatedPriority] = useState<string | null>(null);
-  const [isLocationConfirmed, setIsLocationConfirmed] = useState(false);
-  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-
-
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
@@ -137,7 +127,6 @@ export default function NewOrderPage() {
   
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
-      // Check if a material name was changed
       if (type === 'change' && name && name.startsWith('materials') && name.endsWith('.name')) {
         const index = parseInt(name.split('.')[1], 10);
         const materialItem = value.materials?.[index];
@@ -181,7 +170,7 @@ export default function NewOrderPage() {
   const handleStateChange = (stateName: string) => {
     const stateData = mexicoStates.find(s => s.nombre === stateName) || null;
     setSelectedState(stateData);
-    form.setValue('municipality', ''); // Reset municipality on state change
+    form.setValue('municipality', '');
   };
 
   useEffect(() => {
@@ -194,7 +183,6 @@ export default function NewOrderPage() {
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
     setIsProcessing(true);
-    setLastSubmittedData(values); 
 
     try {
       const { from } = values.deliveryDates;
@@ -203,20 +191,24 @@ export default function NewOrderPage() {
       }
 
       const priority = getPriorityFromDate(from);
-      setCalculatedPriority(priority);
-
-      const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
-      const location = await geocodeAddress({ address: fullAddress });
       
-      setGeocodedLocation(location);
-      setIsLocationConfirmed(false); 
-      setIsConfirmingLocation(true); 
+      // Intentar geocodificar pero no bloquear si falla
+      let location = { lat: 19.4326, lng: -99.1332 }; // Default CDMX
+      try {
+        const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
+        const geocoded = await geocodeAddress({ address: fullAddress });
+        if (geocoded) location = geocoded;
+      } catch (e) {
+        console.warn("Geocodificación fallida, usando ubicación por defecto para continuar sin errores de API.");
+      }
+
+      await finalizeOrder(values, priority, location);
     } catch(err: any) {
-        console.error("Error during initial submission:", err);
+        console.error("Error during submission:", err);
         toast({
             variant: "destructive",
-            title: "Error en la Verificación",
-            description: err.message || "No se pudo procesar la solicitud. Por favor, revisa los datos.",
+            title: "Error al Procesar",
+            description: err.message || "No se pudo procesar la solicitud.",
         });
     } finally {
       setIsProcessing(false);
@@ -225,7 +217,7 @@ export default function NewOrderPage() {
 
 const mergeDuplicateMaterials = (materials: { name: string; quantity: number }[]) => {
     const merged = materials.reduce((acc, material) => {
-      if (!material.name) return acc; // Ignorar entradas vacías
+      if (!material.name) return acc;
       const key = material.name;
       if (acc[key]) {
         acc[key].quantity += Number(material.quantity) || 0;
@@ -262,10 +254,7 @@ const notifyAdmins = async (orderId: string, projectName: string) => {
         const q = query(usersRef, where('userType', '==', 'admin'));
         const adminSnapshot = await getDocs(q);
 
-        if (adminSnapshot.empty) {
-            console.log("No se encontraron usuarios administradores para notificar.");
-            return;
-        }
+        if (adminSnapshot.empty) return;
         
         const batch = writeBatch(firestore);
         const notificationMessage = `Nuevo pedido para la obra "${projectName}" con ID: ${orderId}`;
@@ -282,24 +271,19 @@ const notifyAdmins = async (orderId: string, projectName: string) => {
         });
 
         await batch.commit();
-        console.log("Notificaciones de administrador enviadas exitosamente.");
     } catch (error) {
-        // This will fail for non-admin users due to security rules.
-        // We log it but don't show a toast to the user, as the main operation (order creation) succeeded.
-        console.warn("Could not send admin notifications. This is expected for non-admin users.", error);
+        console.warn("Could not send admin notifications.", error);
     }
 };
 
-const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: number}) => {
-    if (!user || !firestore || !calculatedPriority || !lastSubmittedData) return;
+const finalizeOrder = async (formData: OrderFormData, priority: string, location: {lat: number, lng: number}) => {
+    if (!user || !firestore) return;
     setIsSubmitting(true);
 
     try {
-        // Combinar materiales duplicados
-        const mergedMaterials = mergeDuplicateMaterials(lastSubmittedData.materials);
-
-        // Validar stock disponible
+        const mergedMaterials = mergeDuplicateMaterials(formData.materials);
         const stockErrors = validateStock(mergedMaterials, materialsList);
+        
         if (stockErrors.length > 0) {
             toast({
                 variant: "destructive",
@@ -315,53 +299,29 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
             return;
         }
 
-        // Preparar materiales para RPC
         const materialsForRpc = mergedMaterials.map(m => {
             const materialInfo = materialsList.find(ml => ml.name === m.name);
             if (!materialInfo) throw new Error(`Datos del material ${m.name} no encontrados.`);
             return { id: materialInfo.id, quantity: m.quantity };
         });
 
-        // Verificar que materialsForRpc no esté vacío.
-        if (!materialsForRpc || materialsForRpc.length === 0) {
-            console.error("Error: No hay materiales para enviar a la RPC de Supabase.");
-            toast({
-                variant: "destructive",
-                title: "Error Interno",
-                description: "No se seleccionaron materiales para procesar.",
-            });
-            setIsSubmitting(false);
-            return;
-        }
-        
-        console.log('Enviando a Supabase:', materialsForRpc);
-
-        // Llamar RPC a Supabase sin JSON.stringify
         const { error: stockError } = await supabase.rpc('decrement_materials', {
             materials_to_decrement: materialsForRpc,
         });
 
-        if (stockError) {
-            throw new Error(stockError.message);
-        }
+        if (stockError) throw new Error(stockError.message);
 
-        // Construir objeto del pedido
         const orderData = { 
-            ...lastSubmittedData, 
+            ...formData, 
             materials: mergedMaterials,
-            location: confirmedLocation,
+            location: location,
             total,
             userId: user.uid,
-            priority: calculatedPriority,
+            priority: priority,
             status: 'Pendiente',
             createdAt: serverTimestamp(),
-            deliveryDates: {
-                from: lastSubmittedData.deliveryDates.from,
-                to: lastSubmittedData.deliveryDates.to
-            }
         };
 
-        // Guardar en Firestore
         const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
         const docRef = await addDoc(ordersCollectionRef, orderData)
             .catch((error) => {
@@ -371,27 +331,24 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                     operation: 'create',
                     requestResourceData: orderData
                 }));
-                throw new Error("No se pudo guardar tu pedido después de validar el stock. Contacta a soporte.");
+                throw new Error("No se pudo guardar tu pedido. Contacta a soporte.");
             });
 
-        // Notificar a admins
         await notifyAdmins(docRef.id, orderData.projectName);
 
-        // Feedback al usuario
         toast({
             title: "Pedido Enviado",
             description: "Tu pedido se ha guardado correctamente.",
         });
 
-        setIsConfirmingLocation(false);
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
 
     } catch (error: any) {
-        console.error("Error al confirmar el pedido:", error);
+        console.error("Error al finalizar el pedido:", error);
         toast({
             variant: "destructive",
             title: "Error al Procesar el Pedido",
-            description: error.message || "No se pudo completar la operación. Intenta de nuevo.",
+            description: error.message || "No se pudo completar la operación.",
         });
     } finally {
         setIsSubmitting(false);
@@ -403,20 +360,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
       setIsGettingLocation(true);
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const { latitude, longitude, accuracy } = position.coords;
-          const ACCEPTABLE_ACCURACY_METERS = 100;
-
-          if (accuracy > ACCEPTABLE_ACCURACY_METERS) {
-            toast({
-              variant: "destructive",
-              title: "Ubicación Poco Precisa",
-              description: `La precisión actual (${Math.round(accuracy)}m) es muy baja. Intenta de nuevo en un lugar con mejor señal o ingresa la dirección manualmente.`,
-              duration: 5000,
-            });
-            setIsGettingLocation(false);
-            return;
-          }
-
+          const { latitude, longitude } = position.coords;
           const coords = { lat: latitude, lng: longitude };
           try {
             const address = await reverseGeocode(coords);
@@ -446,24 +390,10 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
         },
         (error) => {
           console.error("Error getting current location:", error);
-          let title = "Error de Ubicación";
-          let description = "No se pudo obtener tu ubicación actual.";
-          switch (error.code) {
-              case error.PERMISSION_DENIED:
-                  description = "Has denegado el permiso de ubicación. Actívalo en los ajustes de tu navegador.";
-                  break;
-              case error.POSITION_UNAVAILABLE:
-                  description = "La información de ubicación no está disponible en este momento.";
-                  break;
-              case error.TIMEOUT:
-                  title = "Tiempo de Espera Agotado";
-                  description = "La solicitud para obtener la ubicación ha tardado demasiado. Inténtalo de nuevo.";
-                  break;
-          }
           toast({
               variant: "destructive",
-              title: title,
-              description: description,
+              title: "Error de Ubicación",
+              description: "No se pudo obtener tu ubicación actual. Asegúrate de permitir los permisos.",
           });
           setIsGettingLocation(false);
         },
@@ -560,7 +490,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                     ) : (
                         <Locate className="mr-2 h-4 w-4"/>
                     )}
-                    Usar mi ubicación
+                    Autocompletar con mi ubicación
                 </Button>
               </div>
               
@@ -786,7 +716,7 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                                         title: "Stock insuficiente",
                                         description: `Solo quedan ${materialInfo.stock} unidades de este material.`,
                                       });
-                                      return; // Previene la actualización
+                                      return;
                                     }
                                   }
                                   
@@ -901,23 +831,6 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
                             className="p-4"
                             disabled={isMounted ? { before: new Date() } : { before: new Date('1970-01-01')}}
                           />
-                          <div className="w-full mt-4 p-4 border-t">
-                            <h4 className="text-sm font-semibold mb-2">Simbología</h4>
-                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-                              <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 rounded-md bg-red-500"></div>
-                                <span>Fecha Próxima (Inicio)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 rounded-md bg-green-500"></div>
-                                <span>Fecha Límite (Fin)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 rounded-md bg-primary/90"></div>
-                                <span>Día de Hoy</span>
-                              </div>
-                            </div>
-                          </div>
                           <DialogFooter className="pt-4">
                             <DialogClose asChild>
                               <Button onClick={() => setIsCalendarOpen(false)}>Confirmar</Button>
@@ -935,14 +848,14 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
               />
 
               <div className="flex justify-end pt-4">
-                  <Button size="lg" type="submit" disabled={isProcessing || isMaterialsLoading}>
-                      {isProcessing ? (
+                  <Button size="lg" type="submit" disabled={isProcessing || isSubmitting || isMaterialsLoading}>
+                      {isProcessing || isSubmitting ? (
                           <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Verificando...
+                              Procesando Pedido...
                           </>
                       ) : (
-                        'Enviar Pedido'
+                        'Confirmar y Enviar Pedido'
                       )}
                   </Button>
               </div>
@@ -950,86 +863,6 @@ const handleLocationConfirmation = async (confirmedLocation: {lat: number, lng: 
           </Form>
         </CardContent>
       </Card>
-
-      <Dialog open={isConfirmingLocation} onOpenChange={setIsConfirmingLocation}>
-          <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                  <DialogTitle>Confirmar Ubicación de Entrega</DialogTitle>
-                  <DialogDescription>
-                      Por favor, verifica que el marcador en el mapa sea correcto. Si no, arrástralo a la posición exacta.
-                  </DialogDescription>
-              </DialogHeader>
-
-              <div className="h-[400px] w-full rounded-lg overflow-hidden border my-4">
-                  <DeliveryMap
-                      apiKey={mapsApiKey}
-                      initialCoordinates={geocodedLocation!}
-                      isDraggable={true}
-                      onLocationChange={(newCoords) => setGeocodedLocation(newCoords)}
-                  />
-              </div>
-              
-              {calculatedPriority && (
-                <div className="flex items-center text-sm font-medium my-4 p-3 rounded-lg bg-primary/10">
-                    <BrainCircuit className="mr-3 h-5 w-5 text-primary" />
-                    Prioridad de Entrega Calculada: <span className="ml-1 font-bold">{calculatedPriority}</span>
-                </div>
-              )}
-
-
-               <div className="flex items-center space-x-2 my-4">
-                <Checkbox id="location-confirm" checked={isLocationConfirmed} onCheckedChange={(checked) => setIsLocationConfirmed(checked as boolean)} />
-                <Label htmlFor="location-confirm" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    La ubicación en el mapa es correcta.
-                </Label>
-              </div>
-
-              <DialogFooter className="sm:justify-between items-center gap-2">
-                 <Button 
-                    variant="outline"
-                    onClick={() => {
-                        if ("geolocation" in navigator) {
-                            navigator.geolocation.getCurrentPosition(
-                                (position) => {
-                                    const newCoords = {
-                                        lat: position.coords.latitude,
-                                        lng: position.coords.longitude
-                                    };
-                                    setGeocodedLocation(newCoords);
-                                },
-                                (error) => {
-                                    console.error("Error getting current location:", error);
-                                    toast({
-                                        variant: "destructive",
-                                        title: "Error de Ubicación",
-                                        description: "No se pudo obtener tu ubicación actual. Asegúrate de haber concedido los permisos.",
-                                    });
-                                },
-                                { enableHighAccuracy: true }
-                            );
-                        } else {
-                            toast({
-                                variant: "destructive",
-                                title: "Navegador no compatible",
-                                description: "Tu navegador no soporta la geolocalización.",
-                            });
-                        }
-                    }}
-                >
-                    <Locate className="mr-2 h-4 w-4"/>
-                    Usar mi Ubicación
-                </Button>
-                <Button 
-                  onClick={() => handleLocationConfirmation(geocodedLocation!)} 
-                  disabled={isSubmitting || !geocodedLocation || !isLocationConfirmed}
-                >
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                    Confirmar y Enviar Pedido
-                </Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
-
     </div>
   );
 }

@@ -45,7 +45,6 @@ import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { Separator } from '../ui/separator';
 import { useState, useEffect, useRef } from 'react';
-import { DeliveryMap } from '../maps/delivery-map';
 import SignaturePad from './signature-pad';
 import { Calendar } from '../ui/calendar';
 import { getMaterials, type Material } from '@/lib/materials';
@@ -86,7 +85,6 @@ export default function OrderList() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
-  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
 
   useEffect(() => {
@@ -151,7 +149,6 @@ export default function OrderList() {
             throw error;
         });
 
-        // Create notification
         const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
         const notificationMessage = `El estado de tu pedido para la obra "${order.projectName}" ha cambiado a: ${newStatus}.`;
         
@@ -162,11 +159,6 @@ export default function OrderList() {
           read: false,
           createdAt: serverTimestamp(),
         }).catch(error => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: notificationRef.path,
-                operation: 'create',
-                requestResourceData: { message: notificationMessage }
-            }));
             console.error("Failed to create notification:", error);
         });
 
@@ -209,11 +201,6 @@ export default function OrderList() {
           read: false,
           createdAt: serverTimestamp(),
         }).catch(error => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: notificationRef.path,
-                operation: 'create',
-                requestResourceData: { message: notificationMessage }
-            }));
             console.error("Failed to create delete notification:", error);
         });
         
@@ -313,6 +300,7 @@ export default function OrderList() {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         const details = [
+            { title: 'Folio:', content: selectedOrder.id },
             { title: 'Solicitante:', content: selectedOrder.requesterName },
             { title: 'Obra:', content: selectedOrder.projectName },
             { title: 'Dirección:', content: `${selectedOrder.street} ${selectedOrder.number}, ${selectedOrder.colony}, ${selectedOrder.municipality}, ${selectedOrder.state}, C.P. ${selectedOrder.postalCode}` },
@@ -327,40 +315,8 @@ export default function OrderList() {
         });
         lastY = (doc as any).lastAutoTable.finalY + 10;
   
-        if (selectedOrder.location) {
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('Ubicación de Entrega', 14, lastY);
-          lastY += 5;
-          const { lat, lng } = selectedOrder.location;
-          const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=600x300&maptype=roadmap&markers=color:red%7C${lat},${lng}&key=${mapsApiKey}`;
-          try {
-            const response = await fetch(mapUrl);
-            const imageBlob = await response.blob();
-            const reader = new FileReader();
-            reader.readAsDataURL(imageBlob);
-            await new Promise<void>(resolve => {
-              reader.onloadend = () => {
-                doc.addImage(reader.result as string, 'PNG', 14, lastY, 180, 70);
-                lastY += 75;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 255); // Blue color for link
-                doc.textWithLink('¿Cómo llegar?', 14, lastY, {
-                    url: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-                });
-                lastY += 5;
-                resolve();
-              };
-            });
-          } catch (mapError) {
-            console.error("Error fetching static map for PDF:", mapError);
-          }
-      }
-      lastY += 5;
-
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0); // Restore text color
         doc.text('Detalles del Pedido', 14, lastY);
         lastY += 5;
   
@@ -543,7 +499,7 @@ export default function OrderList() {
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Estás absolutely seguro?</AlertDialogTitle>
+                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
                                         <AlertDialogDescription>
                                             Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de la base de datos.
                                         </AlertDialogDescription>
@@ -599,11 +555,8 @@ export default function OrderList() {
                                     <p>{selectedOrder.phone}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <h3 className="font-bold uppercase text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Ubicación de Entrega:</h3>
-                                    <p>{selectedOrder.street} {selectedOrder.number}, {selectedOrder.colony}, {selectedOrder.municipality}, {selectedOrder.state}, C.P. {selectedOrder.postalCode}</p>
-                                    <div className="h-[250px] w-full rounded-lg overflow-hidden border">
-                                        <DeliveryMap apiKey={mapsApiKey} address="" initialCoordinates={selectedOrder.location} />
-                                    </div>
+                                    <h3 className="font-bold uppercase text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Dirección de Entrega:</h3>
+                                    <p className="text-lg">{selectedOrder.street} {selectedOrder.number}, {selectedOrder.colony}, {selectedOrder.municipality}, {selectedOrder.state}, C.P. {selectedOrder.postalCode}</p>
                                 </div>
                             </div>
 
