@@ -11,8 +11,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, Locate, MapPin, ExternalLink } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, Locate, MapPin, ExternalLink, Search, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
@@ -88,6 +90,7 @@ export default function NewOrderPage() {
 
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
+  const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -192,8 +195,7 @@ export default function NewOrderPage() {
 
       const priority = getPriorityFromDate(from);
       
-      // Intentar geocodificar pero no bloquear si falla
-      let location = { lat: 19.4326, lng: -99.1332 }; // Default CDMX
+      let location = { lat: 19.4326, lng: -99.1332 }; 
       try {
         const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
         const geocoded = await geocodeAddress({ address: fullAddress });
@@ -628,6 +630,10 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
                 {fields.map((field, index) => {
                    const selectedMaterialInfo = materialsList.find(m => m.name === watchMaterials[index]?.name);
                    const subtotal = (Number(watchMaterials[index]?.quantity) || 0) * (selectedMaterialInfo?.price || 0);
+                   const searchTerm = searchTerms[index] || "";
+                   const filteredMaterials = materialsList.filter(m => 
+                     m.name.toLowerCase().includes(searchTerm.toLowerCase())
+                   );
 
                   return (
                     <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg relative">
@@ -636,40 +642,91 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
                         name={`materials.${index}.name`}
                         render={({ field }) => (
                           <FormItem className="md:col-span-3">
-                            <FormLabel htmlFor={`materials.${index}.name`}>Material ({selectedMaterialInfo?.stock || '0'} disp.)</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={isMaterialsLoading}>
-                              <FormControl>
-                                <SelectTrigger id={`materials.${index}.name`}>
-                                  <SelectValue placeholder="Selecciona" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {materialsList.filter(m => m.name).map(material => (
-                                  <SelectItem 
-                                    key={material.id} 
-                                    value={material.name} 
-                                    className={cn("capitalize", material.stock === 0 && "text-muted-foreground line-through")}
-                                    disabled={material.stock === 0}
+                            <FormLabel>Material ({selectedMaterialInfo?.stock || '0'} disp.)</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                      "w-full justify-between font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                    disabled={isMaterialsLoading}
                                   >
-                                    <div className="flex items-center gap-3 py-1">
-                                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-muted">
-                                        <Image
-                                          src={material.imageUrl || '/images/placeholder.png'}
-                                          alt={material.name}
-                                          fill
-                                          className="object-cover"
-                                          unoptimized={!!material.imageUrl}
+                                    <span className="truncate">
+                                      {field.value
+                                        ? materialsList.find((m) => m.name === field.value)?.name
+                                        : "Selecciona material..."}
+                                    </span>
+                                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[300px] p-0" align="start">
+                                <div className="flex items-center border-b px-3">
+                                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                  <Input
+                                    placeholder="Escribe para buscar..."
+                                    className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
+                                  />
+                                </div>
+                                <ScrollArea className="h-72">
+                                  <div className="p-1">
+                                    {filteredMaterials.length === 0 && (
+                                      <div className="py-6 text-center text-sm text-muted-foreground">
+                                        No se encontraron materiales.
+                                      </div>
+                                    )}
+                                    {filteredMaterials.map((material) => (
+                                      <Button
+                                        key={material.id}
+                                        variant="ghost"
+                                        className={cn(
+                                          "w-full justify-start font-normal capitalize py-3 h-auto mb-1",
+                                          field.value === material.name && "bg-accent"
+                                        )}
+                                        onClick={() => {
+                                          field.onChange(material.name);
+                                          // Se mantiene el Popover abierto por si quiere cambiar, 
+                                          // o se puede cerrar automáticamente si fuera un Dialog.
+                                        }}
+                                        disabled={material.stock === 0}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4 shrink-0",
+                                            field.value === material.name ? "opacity-100" : "opacity-0"
+                                          )}
                                         />
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">{material.name}</span>
-                                        <span className="text-[10px] text-muted-foreground">{material.stock} disp.</span>
-                                      </div>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border bg-muted">
+                                            <Image
+                                              src={material.imageUrl || '/images/placeholder.png'}
+                                              alt={material.name}
+                                              fill
+                                              className="object-cover"
+                                              unoptimized={!!material.imageUrl}
+                                            />
+                                          </div>
+                                          <div className="flex flex-col text-left overflow-hidden">
+                                            <span className={cn("font-medium truncate", material.stock === 0 && "text-muted-foreground line-through")}>
+                                              {material.name}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                              {material.stock} disp. - ${material.price.toFixed(2)} / {material.unit}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              </PopoverContent>
+                            </Popover>
                             <FormMessage />
                           </FormItem>
                         )}
