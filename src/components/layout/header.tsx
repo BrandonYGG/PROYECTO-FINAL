@@ -27,7 +27,7 @@ export function Header() {
         <Logo />
         <nav className="hidden md:flex items-center gap-4">
             <Button variant="ghost" asChild>
-                <Link href="/products">Productos</Link>
+                <Link href="/#featured-materials">Productos</Link>
             </Button>
         </nav>
         <div className="flex items-center gap-2">
