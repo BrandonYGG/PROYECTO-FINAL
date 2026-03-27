@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, MapPin, ExternalLink, Search, Check } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, MapPin, ExternalLink, Search, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -361,18 +361,11 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
   return (
     <div className="container mx-auto py-12 px-4 animate-fade-in">
       <Card className="max-w-4xl mx-auto shadow-lg">
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <CardHeader>
           <div>
             <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
             <CardDescription>Completa el formulario para realizar tu pedido.</CardDescription>
           </div>
-          <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10 font-bold">
-            <a href="https://tlapaia.netlify.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-              <BrainCircuit className="h-5 w-5" />
-              Asistente de Cotización IA
-              <ExternalLink className="h-4 w-4 opacity-70" />
-            </a>
-          </Button>
         </CardHeader>
         <CardContent>
           <Form {...form}>

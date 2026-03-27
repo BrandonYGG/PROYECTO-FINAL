@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { User, Mail, Phone, LogOut, PackagePlus, Shield, Users, Briefcase, Database, BrainCircuit, ExternalLink } from "lucide-react";
+import { User, Mail, Phone, LogOut, PackagePlus, Shield, Users, Briefcase, Database } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, useUser, useFirestore } from "@/firebase";
@@ -173,7 +173,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="md:col-span-2 space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 <Card className="hover:shadow-md transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Nuevo Pedido</CardTitle>
@@ -184,21 +184,6 @@ export default function ProfilePage() {
                             <Link href="/new-order">
                                 Crear un nuevo pedido
                             </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-                <Card className="hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Asistente IA</CardTitle>
-                        <BrainCircuit className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <Button asChild variant="outline" className="w-full mt-4 border-primary text-primary hover:bg-primary/10 font-bold">
-                            <a href="https://tlapaia.netlify.app/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                                <BrainCircuit className="h-4 w-4" />
-                                Cotización IA
-                                <ExternalLink className="h-3 w-3 opacity-70" />
-                            </a>
                         </Button>
                     </CardContent>
                 </Card>
