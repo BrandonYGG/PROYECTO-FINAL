@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, Locate, MapPin, ExternalLink, Search, Check } from "lucide-react";
+import { CalendarIcon, Plus, BrainCircuit, Trash2, Loader2, MapPin, ExternalLink, Search, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,7 +26,6 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
-import { reverseGeocode } from "../actions/reverse-geocode-actions";
 import { getMaterials, type Material } from "@/lib/materials";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
@@ -85,7 +84,6 @@ export default function NewOrderPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
@@ -357,59 +355,6 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
     }
 };
 
-  const handleUseCurrentLocation = () => {
-    if ("geolocation" in navigator) {
-      setIsGettingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const coords = { lat: latitude, lng: longitude };
-          try {
-            const address = await reverseGeocode(coords);
-            form.setValue('street', `${address.street}`);
-            form.setValue('number', `${address.number}`);
-            form.setValue('colony', address.colony);
-            form.setValue('postalCode', address.postalCode);
-            form.setValue('state', address.state);
-            form.setValue('municipality', address.municipality);
-
-            form.trigger(['street', 'number', 'colony', 'postalCode', 'state', 'municipality']);
-
-            toast({
-              title: "Ubicación Obtenida",
-              description: "Los campos de dirección han sido actualizados.",
-            });
-          } catch (error) {
-            console.error("Error reverse geocoding:", error);
-            toast({
-              variant: "destructive",
-              title: "Error de Dirección",
-              description: "No se pudo obtener la dirección desde tu ubicación.",
-            });
-          } finally {
-            setIsGettingLocation(false);
-          }
-        },
-        (error) => {
-          console.error("Error getting current location:", error);
-          toast({
-              variant: "destructive",
-              title: "Error de Ubicación",
-              description: "No se pudo obtener tu ubicación actual. Asegúrate de permitir los permisos.",
-          });
-          setIsGettingLocation(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Navegador no compatible",
-        description: "Tu navegador no soporta la geolocalización.",
-      });
-    }
-  };
-
 
   const isCdmx = selectedState?.nombre === 'Ciudad de México';
 
@@ -486,14 +431,6 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
 
               <div className="flex justify-between items-center border-b pb-2 pt-4">
                 <h3 className="text-lg font-semibold">Dirección de Entrega</h3>
-                 <Button type="button" variant="outline" size="sm" onClick={handleUseCurrentLocation} disabled={isGettingLocation}>
-                    {isGettingLocation ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
-                    ) : (
-                        <Locate className="mr-2 h-4 w-4"/>
-                    )}
-                    Autocompletar con mi ubicación
-                </Button>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -691,8 +628,6 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
                                         )}
                                         onClick={() => {
                                           field.onChange(material.name);
-                                          // Se mantiene el Popover abierto por si quiere cambiar, 
-                                          // o se puede cerrar automáticamente si fuera un Dialog.
                                         }}
                                         disabled={material.stock === 0}
                                       >
