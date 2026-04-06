@@ -54,7 +54,7 @@ export function PrivacyContent() {
                 </p>
 
                 <p className="mt-8">
-                    <em>Última actualización: 24 de noviembre de 2025</em>
+                    <em>Última actualización: Marzo 2026</em>
                 </p>
             </div>
         </>

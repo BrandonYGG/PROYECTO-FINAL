@@ -10,8 +10,8 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
-import { useState, useEffect } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, MapPin, ExternalLink, Search, Check } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { CalendarIcon, Plus, Trash2, Loader2, MapPin, ExternalLink, Search, Check, Filter } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +29,7 @@ import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { getMaterials, type Material } from "@/lib/materials";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
 
 
 const materialOrderSchema = z.object({
@@ -89,6 +90,7 @@ export default function NewOrderPage() {
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
+  const [selectedCategories, setSelectedCategories] = useState<Record<number, string>>({});
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -126,6 +128,11 @@ export default function NewOrderPage() {
     fetchMaterials();
   }, []);
   
+  const categories = useMemo(() => {
+    const cats = Array.from(new Set(materialsList.map(m => m.unit).filter(Boolean)));
+    return ["Todas", ...cats];
+  }, [materialsList]);
+
   useEffect(() => {
     const subscription = form.watch((value, { name, type }) => {
       if (type === 'change' && name && name.startsWith('materials') && name.endsWith('.name')) {
@@ -561,9 +568,13 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
                    const selectedMaterialInfo = materialsList.find(m => m.name === watchMaterials[index]?.name);
                    const subtotal = (Number(watchMaterials[index]?.quantity) || 0) * (selectedMaterialInfo?.price || 0);
                    const searchTerm = searchTerms[index] || "";
-                   const filteredMaterials = materialsList.filter(m => 
-                     m.name.toLowerCase().includes(searchTerm.toLowerCase())
-                   );
+                   const selectedCategory = selectedCategories[index] || "Todas";
+                   
+                   const filteredMaterials = materialsList.filter(m => {
+                     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
+                     const matchesCategory = selectedCategory === "Todas" || m.unit === selectedCategory;
+                     return matchesSearch && matchesCategory;
+                   });
 
                   return (
                     <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg relative">
@@ -594,7 +605,7 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
-                              <PopoverContent className="w-[300px] p-0" align="start">
+                              <PopoverContent className="w-[320px] p-0" align="start">
                                 <div className="flex items-center border-b px-3">
                                   <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                   <Input
@@ -603,6 +614,22 @@ const finalizeOrder = async (formData: OrderFormData, priority: string, location
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
                                   />
+                                </div>
+                                <div className="flex gap-1 overflow-x-auto p-2 border-b bg-muted/30 scrollbar-hide no-scrollbar">
+                                    <style jsx global>{`
+                                        .no-scrollbar::-webkit-scrollbar { display: none; }
+                                        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                                    `}</style>
+                                    {categories.map(cat => (
+                                        <Badge
+                                            key={cat}
+                                            variant={selectedCategory === cat ? "default" : "outline"}
+                                            className="cursor-pointer whitespace-nowrap px-2 py-0.5 text-[10px] h-6 flex items-center justify-center transition-colors"
+                                            onClick={() => setSelectedCategories(prev => ({ ...prev, [index]: cat }))}
+                                        >
+                                            {cat}
+                                        </Badge>
+                                    ))}
                                 </div>
                                 <ScrollArea className="h-72">
                                   <div className="p-1">
