@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, Check, ChevronRight, FolderTree, ImageIcon } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, Check, ChevronRight, FolderTree, ImageIcon, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
@@ -27,6 +27,7 @@ import { getMaterials, type Material } from "@/lib/materials";
 import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -109,9 +110,14 @@ export default function NewOrderPage() {
   useEffect(() => {
     const fetchMaterials = async () => {
         setIsMaterialsLoading(true);
-        const materials = await getMaterials();
-        setMaterialsList(materials);
-        setIsMaterialsLoading(false);
+        try {
+            const materials = await getMaterials();
+            setMaterialsList(materials);
+        } catch (error) {
+            console.error("Failed to fetch materials", error);
+        } finally {
+            setIsMaterialsLoading(false);
+        }
     }
     fetchMaterials();
   }, []);
@@ -256,7 +262,8 @@ export default function NewOrderPage() {
                    const isSearching = searchTerm.length > 0;
                    
                    const filteredMaterials = materialsList.filter(m => 
-                     m.name.toLowerCase().includes(searchTerm.toLowerCase())
+                     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                     (m.family && m.family.toLowerCase().includes(searchTerm.toLowerCase()))
                    );
 
                   return (
@@ -280,12 +287,12 @@ export default function NewOrderPage() {
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
-                              <PopoverContent className="w-[350px] p-0" align="start">
+                              <PopoverContent className="w-[400px] p-0" align="start">
                                 <div className="p-2 border-b">
                                   <div className="relative">
                                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                      placeholder="Buscar por nombre..."
+                                      placeholder="Buscar por nombre o familia..."
                                       className="pl-8"
                                       value={searchTerm}
                                       onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
@@ -298,16 +305,22 @@ export default function NewOrderPage() {
                                       {filteredMaterials.map(m => (
                                         <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
                                           <div className="flex items-center gap-3 w-full">
-                                            <div className="relative w-10 h-10 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+                                            <div className="relative w-12 h-12 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
                                                 {m.imageUrl ? (
                                                     <Image src={m.imageUrl} alt={m.name} fill className="object-cover" />
                                                 ) : (
-                                                    <ImageIcon className="h-5 w-5 opacity-20" />
+                                                    <ImageIcon className="h-6 w-6 opacity-20" />
                                                 )}
                                             </div>
-                                            <div className="flex flex-col items-start truncate">
+                                            <div className="flex flex-col items-start truncate flex-1">
                                               <span className="font-bold truncate w-full text-left">{m.name}</span>
                                               <span className="text-[10px] opacity-70 truncate">{m.family} > {m.subfamily}</span>
+                                              <div className="flex items-center gap-2 mt-1">
+                                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">${m.price}/{m.unit}</Badge>
+                                                <span className={cn("text-[9px] font-medium", m.stock > 0 ? "text-green-600" : "text-red-600")}>
+                                                  Stock: {m.stock}
+                                                </span>
+                                              </div>
                                             </div>
                                           </div>
                                         </Button>
@@ -333,15 +346,22 @@ export default function NewOrderPage() {
                                                       {items.map(m => (
                                                         <Button key={m.id} variant="ghost" className="justify-start h-auto py-2 text-xs font-normal" onClick={() => field.onChange(m.name)}>
                                                           <div className="flex items-center gap-2 w-full">
-                                                            <div className="relative w-8 h-8 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+                                                            <div className="relative w-10 h-10 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
                                                                 {m.imageUrl ? (
                                                                     <Image src={m.imageUrl} alt={m.name} fill className="object-cover" />
                                                                 ) : (
-                                                                    <ImageIcon className="h-4 w-4 opacity-20" />
+                                                                    <ImageIcon className="h-5 w-5 opacity-20" />
                                                                 )}
                                                             </div>
-                                                            <span className="truncate flex-1 text-left">{m.name}</span>
-                                                            <span className="opacity-60 text-[10px] shrink-0">${m.price}/{m.unit}</span>
+                                                            <div className="flex flex-col items-start truncate flex-1">
+                                                              <span className="truncate text-left font-medium">{m.name}</span>
+                                                              <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="opacity-70 text-[10px]">${m.price}/{m.unit}</span>
+                                                                <span className={cn("text-[10px]", m.stock > 0 ? "text-green-600" : "text-red-600")}>
+                                                                  Stock: {m.stock}
+                                                                </span>
+                                                              </div>
+                                                            </div>
                                                           </div>
                                                         </Button>
                                                       ))}
@@ -363,7 +383,7 @@ export default function NewOrderPage() {
                         )} />
 
                       <div className="md:col-span-2">
-                          <Label className="text-xs">P. Unitario</Label>
+                          <Label className="text-xs">Precio Sugerido</Label>
                           <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}`: '-'} className="bg-muted text-xs h-10" />
                       </div>
 
