@@ -153,6 +153,29 @@ export default function NewOrderPage() {
 
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
+
+    // VALIDACIÓN DE STOCK
+    let hasStockError = false;
+    values.materials.forEach((item, index) => {
+      const materialInfo = materialsList.find(m => m.name === item.name);
+      if (materialInfo && item.quantity > materialInfo.stock) {
+        form.setError(`materials.${index}.quantity`, {
+          type: "manual",
+          message: `Stock insuficiente. Disponible: ${materialInfo.stock}`
+        });
+        hasStockError = true;
+      }
+    });
+
+    if (hasStockError) {
+      toast({
+        variant: "destructive",
+        title: "Error de Stock",
+        description: "Uno o más productos superan la cantidad disponible en inventario."
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -391,6 +414,7 @@ export default function NewOrderPage() {
                           <FormItem className="md:col-span-2">
                             <FormLabel className="text-xs">Cantidad</FormLabel>
                             <FormControl><Input type="number" {...field} className="h-10" /></FormControl>
+                            <FormMessage />
                           </FormItem>
                         )} />
                       
