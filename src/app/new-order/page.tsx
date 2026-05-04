@@ -11,8 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, Check, ChevronRight, FolderTree } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, Check, ChevronRight, FolderTree, ImageIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,16 +20,13 @@ import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp, query, where, getDocs, writeBatch, doc } from "firebase/firestore";
-import { FirestorePermissionError } from "@/firebase/errors";
-import { errorEmitter } from "@/firebase/error-emitter";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { getMaterials, type Material } from "@/lib/materials";
-import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
+import { Dialog, DialogContent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -71,17 +67,15 @@ function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     return 'Normal';
 }
 
-
 export default function NewOrderPage() {
   const router = useRouter();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const { toast } = useToast();
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
 
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
@@ -113,7 +107,6 @@ export default function NewOrderPage() {
   });
 
   useEffect(() => {
-    setIsMounted(true);
     const fetchMaterials = async () => {
         setIsMaterialsLoading(true);
         const materials = await getMaterials();
@@ -274,8 +267,15 @@ export default function NewOrderPage() {
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
-                                  <Button variant="outline" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
-                                    <span className="truncate">{field.value || "Selecciona material..."}</span>
+                                  <Button variant="outline" className={cn("w-full h-12 justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                    <div className="flex items-center gap-2 truncate">
+                                        {selectedMaterial?.imageUrl && (
+                                            <div className="relative w-8 h-8 rounded overflow-hidden shrink-0 border">
+                                                <Image src={selectedMaterial.imageUrl} alt={selectedMaterial.name} fill className="object-cover" />
+                                            </div>
+                                        )}
+                                        <span className="truncate">{field.value || "Selecciona material..."}</span>
+                                    </div>
                                     <Search className="ml-2 h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
@@ -297,9 +297,18 @@ export default function NewOrderPage() {
                                     <div className="p-2 space-y-1">
                                       {filteredMaterials.map(m => (
                                         <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
-                                          <div className="flex flex-col items-start">
-                                            <span className="font-bold">{m.name}</span>
-                                            <span className="text-[10px] opacity-70">{m.family} > {m.subfamily}</span>
+                                          <div className="flex items-center gap-3 w-full">
+                                            <div className="relative w-10 h-10 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+                                                {m.imageUrl ? (
+                                                    <Image src={m.imageUrl} alt={m.name} fill className="object-cover" />
+                                                ) : (
+                                                    <ImageIcon className="h-5 w-5 opacity-20" />
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col items-start truncate">
+                                              <span className="font-bold truncate w-full text-left">{m.name}</span>
+                                              <span className="text-[10px] opacity-70 truncate">{m.family} > {m.subfamily}</span>
+                                            </div>
                                           </div>
                                         </Button>
                                       ))}
@@ -323,9 +332,17 @@ export default function NewOrderPage() {
                                                     <div className="flex flex-col gap-1 pr-2">
                                                       {items.map(m => (
                                                         <Button key={m.id} variant="ghost" className="justify-start h-auto py-2 text-xs font-normal" onClick={() => field.onChange(m.name)}>
-                                                          <ChevronRight className="h-3 w-3 mr-2 opacity-50" />
-                                                          <span className="truncate">{m.name}</span>
-                                                          <span className="ml-auto opacity-60">${m.price}/{m.unit}</span>
+                                                          <div className="flex items-center gap-2 w-full">
+                                                            <div className="relative w-8 h-8 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+                                                                {m.imageUrl ? (
+                                                                    <Image src={m.imageUrl} alt={m.name} fill className="object-cover" />
+                                                                ) : (
+                                                                    <ImageIcon className="h-4 w-4 opacity-20" />
+                                                                )}
+                                                            </div>
+                                                            <span className="truncate flex-1 text-left">{m.name}</span>
+                                                            <span className="opacity-60 text-[10px] shrink-0">${m.price}/{m.unit}</span>
+                                                          </div>
                                                         </Button>
                                                       ))}
                                                     </div>
