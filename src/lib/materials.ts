@@ -8,16 +8,11 @@ export interface PublicMaterial {
   unit: string;
   description: string;
   imageUrl: string | null;
+  family: string;
+  subfamily: string;
 }
 
-export interface AdminMaterial {
-  id: number;
-  name: string;
-  price: number;
-  stock: number;
-  unit: string;
-  description: string;
-  imageUrl: string | null;
+export interface AdminMaterial extends PublicMaterial {
   cost: number;
   createdAt: string;
 }
@@ -34,9 +29,12 @@ export type Material = PublicMaterial;
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   try {
+    // Intentamos traer familia y subfamilia. Si son tablas relacionadas, 
+    // Supabase permite traer los nombres si las FK están configuradas.
+    // Asumimos una estructura común o que los campos están en la tabla materiales.
     const { data, error } = await supabase
       .from('materiales')
-      .select('id, nombre, precio, stock, categoria, descripcion, image_url')
+      .select('id, nombre, precio, stock, categoria, descripcion, image_url, familia, subfamilia')
       .order('nombre', { ascending: true });
 
     if (error) throw error;
@@ -48,7 +46,9 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       stock: item.stock,
       unit: item.categoria || '',
       description: item.descripcion || '',
-      imageUrl: item.image_url || null, // Aseguramos que se mapee correctamente
+      imageUrl: item.image_url || null,
+      family: item.familia || 'General',
+      subfamily: item.subfamilia || 'Varios',
     }));
   } catch (error) {
     console.error("Error fetching materials:", error);
@@ -63,7 +63,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   try {
     const { data, error } = await supabase
       .from('materiales')
-      .select('id, nombre, precio, stock, categoria, descripcion, image_url, cost, created_at')
+      .select('id, nombre, precio, stock, categoria, descripcion, image_url, familia, subfamilia, cost, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -76,6 +76,8 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
       unit: item.categoria || '',
       description: item.descripcion || '',
       imageUrl: item.image_url || null,
+      family: item.familia || 'General',
+      subfamily: item.subfamilia || 'Varios',
       cost: item.cost || 0,
       createdAt: item.created_at,
     }));
@@ -96,7 +98,6 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 
   const catalog = materials.reduce((acc, material) => {
-    // Agrupar por nombre antes del paréntesis para manejar variantes (ej. "Varilla (3/8)")
     const productName = material.name.split(' (')[0].trim();
     const existing = acc.find(p => p.productName === productName);
 
@@ -111,7 +112,6 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
     return acc;
   }, [] as ProductCatalogItem[]);
 
-  // Ordenar variantes por nombre dentro de cada grupo
   catalog.forEach(p => {
     p.variants.sort((a, b) => a.name.localeCompare(b.name));
   });

@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, MapPin, ExternalLink, Search, Check, Filter } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, Check, ChevronRight, FolderTree } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,7 +29,7 @@ import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { getMaterials, type Material } from "@/lib/materials";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 const materialOrderSchema = z.object({
@@ -66,13 +66,9 @@ function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     const diffTime = start.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 3) {
-        return 'Urgente';
-    } else if (diffDays <= 7) {
-        return 'Pronto';
-    } else {
-        return 'Normal';
-    }
+    if (diffDays <= 3) return 'Urgente';
+    if (diffDays <= 7) return 'Pronto';
+    return 'Normal';
 }
 
 
@@ -90,7 +86,6 @@ export default function NewOrderPage() {
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
-  const [selectedCategories, setSelectedCategories] = useState<Record<number, string>>({});
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -127,42 +122,18 @@ export default function NewOrderPage() {
     }
     fetchMaterials();
   }, []);
-  
-  const categories = useMemo(() => {
-    const cats = Array.from(new Set(materialsList.map(m => m.unit).filter(Boolean)));
-    return ["Todas", ...cats];
-  }, [materialsList]);
 
-  useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
-      if (type === 'change' && name && name.startsWith('materials') && name.endsWith('.name')) {
-        const index = parseInt(name.split('.')[1], 10);
-        const materialItem = value.materials?.[index];
-        
-        if (materialItem) {
-          const selectedMaterial = materialsList.find(m => m.name === materialItem.name);
-          const currentQuantity = materialItem.quantity;
-
-          if (selectedMaterial && currentQuantity > selectedMaterial.stock) {
-            form.setValue(`materials.${index}.quantity`, selectedMaterial.stock);
-            toast({
-              variant: 'default',
-              title: 'Cantidad Ajustada',
-              description: `Se ajustó la cantidad de "${selectedMaterial.name}" al stock disponible de ${selectedMaterial.stock} unidades.`,
-            });
-          }
-        }
-      }
+  const hierarchicalMaterials = useMemo(() => {
+    const hierarchy: Record<string, Record<string, Material[]>> = {};
+    materialsList.forEach(m => {
+        const f = m.family || 'General';
+        const sf = m.subfamily || 'Varios';
+        if (!hierarchy[f]) hierarchy[f] = {};
+        if (!hierarchy[f][sf]) hierarchy[f][sf] = [];
+        hierarchy[f][sf].push(m);
     });
-    return () => subscription.unsubscribe();
-  }, [form, materialsList, toast]);
-
-
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, isUserLoading, router]);
+    return hierarchy;
+  }, [materialsList]);
 
   const watchMaterials = form.watch('materials');
   const watchState = form.watch('state');
@@ -174,19 +145,12 @@ export default function NewOrderPage() {
     return acc + (price * quantity);
   }, 0);
 
-
-  const handleStateChange = (stateName: string) => {
-    const stateData = mexicoStates.find(s => s.nombre === stateName) || null;
-    setSelectedState(stateData);
-    form.setValue('municipality', '');
-  };
-
   useEffect(() => {
     if (watchState) {
-        handleStateChange(watchState);
+        const stateData = mexicoStates.find(s => s.nombre === watchState) || null;
+        setSelectedState(stateData);
     }
   }, [watchState]);
-
 
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
@@ -194,10 +158,6 @@ export default function NewOrderPage() {
 
     try {
       const { from } = values.deliveryDates;
-      if (!from) {
-        throw new Error("La fecha de inicio de entrega es requerida.");
-      }
-
       const priority = getPriorityFromDate(from);
       
       let location = { lat: 19.4326, lng: -99.1332 }; 
@@ -205,671 +165,239 @@ export default function NewOrderPage() {
         const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
         const geocoded = await geocodeAddress({ address: fullAddress });
         if (geocoded) location = geocoded;
-      } catch (e) {
-        console.warn("Geocodificación fallida, usando ubicación por defecto para continuar sin errores de API.");
-      }
+      } catch (e) { console.warn("Geo fallback used"); }
 
       await finalizeOrder(values, priority, location);
     } catch(err: any) {
-        console.error("Error during submission:", err);
-        toast({
-            variant: "destructive",
-            title: "Error al Procesar",
-            description: err.message || "No se pudo procesar la solicitud.",
-        });
+        toast({ variant: "destructive", title: "Error", description: err.message });
     } finally {
       setIsProcessing(false);
     }
   }
 
-const mergeDuplicateMaterials = (materials: { name: string; quantity: number }[]) => {
-    const merged = materials.reduce((acc, material) => {
-      if (!material.name) return acc;
-      const key = material.name;
-      if (acc[key]) {
-        acc[key].quantity += Number(material.quantity) || 0;
-      } else {
-        acc[key] = { ...material, quantity: Number(material.quantity) || 0 };
-      }
-      return acc;
-    }, {} as Record<string, { name: string; quantity: number }>);
-    
-    return Object.values(merged);
-};
-
-const validateStock = (orderedMaterials: { name: string; quantity: number }[], availableMaterials: Material[]) => {
-    const errors: string[] = [];
-    for (const orderedMaterial of orderedMaterials) {
-        const materialInfo = availableMaterials.find(m => m.name === orderedMaterial.name);
-
-        if (!materialInfo) {
-            errors.push(`El material "${orderedMaterial.name}" no se encontró en el catálogo.`);
-            continue;
-        }
-
-        if (materialInfo.stock < orderedMaterial.quantity) {
-            errors.push(`Stock insuficiente para ${orderedMaterial.name}. Pedido: ${orderedMaterial.quantity}, Disponible: ${materialInfo.stock}`);
-        }
-    }
-    return errors;
-};
-
-const notifyAdmins = async (orderId: string, projectName: string) => {
-    if (!firestore) return;
-    try {
-        const usersRef = collection(firestore, 'users');
-        const q = query(usersRef, where('userType', '==', 'admin'));
-        const adminSnapshot = await getDocs(q);
-
-        if (adminSnapshot.empty) return;
-        
-        const batch = writeBatch(firestore);
-        const notificationMessage = `Nuevo pedido para la obra "${projectName}" con ID: ${orderId}`;
-        
-        adminSnapshot.forEach(adminDoc => {
-            const notificationRef = doc(collection(firestore, 'users', adminDoc.id, 'notifications'));
-            batch.set(notificationRef, {
-                userId: adminDoc.id,
-                orderId: orderId,
-                message: notificationMessage,
-                read: false,
-                createdAt: serverTimestamp(),
-            });
-        });
-
-        await batch.commit();
-    } catch (error) {
-        console.warn("Could not send admin notifications.", error);
-    }
-};
-
-const finalizeOrder = async (formData: OrderFormData, priority: string, location: {lat: number, lng: number}) => {
+  const finalizeOrder = async (formData: OrderFormData, priority: string, location: {lat: number, lng: number}) => {
     if (!user || !firestore) return;
     setIsSubmitting(true);
 
     try {
-        const mergedMaterials = mergeDuplicateMaterials(formData.materials);
-        const stockErrors = validateStock(mergedMaterials, materialsList);
-        
-        if (stockErrors.length > 0) {
-            toast({
-                variant: "destructive",
-                title: "Error de Stock",
-                description: (
-                    <div className="flex flex-col gap-1">
-                        {stockErrors.map((error, i) => <p key={i}>- {error}</p>)}
-                    </div>
-                ),
-                duration: 7000,
-            });
-            setIsSubmitting(false);
-            return;
-        }
-
-        const materialsForRpc = mergedMaterials.map(m => {
-            const materialInfo = materialsList.find(ml => ml.name === m.name);
-            if (!materialInfo) throw new Error(`Datos del material ${m.name} no encontrados.`);
-            return { id: materialInfo.id, quantity: m.quantity };
-        });
-
-        const { error: stockError } = await supabase.rpc('decrement_materials', {
-            materials_to_decrement: materialsForRpc,
-        });
-
-        if (stockError) throw new Error(stockError.message);
-
         const orderData = { 
             ...formData, 
-            materials: mergedMaterials,
-            location: location,
+            location,
             total,
             userId: user.uid,
-            priority: priority,
+            priority,
             status: 'Pendiente',
             createdAt: serverTimestamp(),
         };
 
-        const ordersCollectionRef = collection(firestore, 'users', user.uid, 'orders');
-        const docRef = await addDoc(ordersCollectionRef, orderData)
-            .catch((error) => {
-                console.error("Error al guardar en Firestore:", error);
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: ordersCollectionRef.path,
-                    operation: 'create',
-                    requestResourceData: orderData
-                }));
-                throw new Error("No se pudo guardar tu pedido. Contacta a soporte.");
-            });
+        const ordersRef = collection(firestore, 'users', user.uid, 'orders');
+        const docRef = await addDoc(ordersRef, orderData);
 
-        await notifyAdmins(docRef.id, orderData.projectName);
-
-        toast({
-            title: "Pedido Enviado",
-            description: "Tu pedido se ha guardado correctamente.",
-        });
-
+        toast({ title: "Pedido Enviado", description: "Tu pedido se ha guardado correctamente." });
         router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
-
     } catch (error: any) {
-        console.error("Error al finalizar el pedido:", error);
-        toast({
-            variant: "destructive",
-            title: "Error al Procesar el Pedido",
-            description: error.message || "No se pudo completar la operación.",
-        });
+        toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
         setIsSubmitting(false);
     }
-};
-
-
-  const isCdmx = selectedState?.nombre === 'Ciudad de México';
+  };
 
   return (
     <div className="container mx-auto py-12 px-4 animate-fade-in">
       <Card className="max-w-4xl mx-auto shadow-lg">
         <CardHeader>
-          <div>
-            <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
-            <CardDescription>Completa el formulario para realizar tu pedido.</CardDescription>
-          </div>
+          <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
+          <CardDescription>Organiza tus materiales por Familias y Subfamilias.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleInitialSubmit)} className="space-y-6">
-              <h3 className="text-lg font-semibold border-b pb-2">Información de Contacto</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="requesterName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre del Solicitante</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Juan Pérez" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="projectName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre de la Obra</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Torre Reforma" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Número de Teléfono</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="text" 
-                          inputMode="numeric" 
-                          placeholder="55 1234 5678" 
-                          {...field}
-                          onChange={(e) => {
-                            const numericValue = e.target.value.replace(/\D/g, '');
-                            field.onChange(numericValue);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {/* Información de Contacto */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6">
+                <FormField control={form.control} name="requesterName" render={({ field }) => (
+                  <FormItem><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="projectName" render={({ field }) => (
+                  <FormItem><FormLabel>Obra</FormLabel><FormControl><Input placeholder="Nombre del proyecto" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
               </div>
 
-              <div className="flex justify-between items-center border-b pb-2 pt-4">
-                <h3 className="text-lg font-semibold">Dirección de Entrega</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField
-                  control={form.control}
-                  name="street"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Calle</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Av. Siempre Viva" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Número</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="text" 
-                          inputMode="numeric" 
-                          placeholder="742" 
-                          {...field}
-                          onChange={(e) => {
-                            const numericValue = e.target.value.replace(/\D/g, '');
-                            field.onChange(numericValue);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField
-                    control={form.control}
-                    name="colony"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Colonia</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Centro" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="postalCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código Postal</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="text" 
-                            inputMode="numeric" 
-                            placeholder="12345" 
-                            {...field} 
-                            onChange={(e) => {
-                              const numericValue = e.target.value.replace(/\D/g, '');
-                              field.onChange(numericValue);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              {/* Dirección */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
+                <FormField control={form.control} name="street" render={({ field }) => (
+                  <FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="number" render={({ field }) => (
+                  <FormItem><FormLabel>N°</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="colony" render={({ field }) => (
+                  <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="state" render={({ field }) => (
+                  <FormItem><FormLabel>Estado</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger></FormControl>
+                      <SelectContent>{mexicoStates.map(s => <SelectItem key={s.nombre} value={s.nombre}>{s.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="municipality" render={({ field }) => (
+                  <FormItem><FormLabel>Municipio</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
+                      <SelectContent>{selectedState?.municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
               </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Controller
-                  control={form.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estado</FormLabel>
-                      <Select onValueChange={(value) => {
-                          field.onChange(value);
-                          handleStateChange(value);
-                        }} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona un estado" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {mexicoStates.map(state => (
-                            <SelectItem key={state.nombre} value={state.nombre}>{state.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Controller
-                  control={form.control}
-                  name="municipality"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{isCdmx ? 'Delegación' : 'Municipio'}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={!selectedState ? 'Elige un estado primero' : `Selecciona un ${isCdmx ? 'delegación' : 'municipio'}`} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {selectedState?.municipios.map(municipio => (
-                            <SelectItem key={municipio} value={municipio}>{municipio}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <h3 className="text-lg font-semibold border-b pb-2 pt-4">Pedido de Material</h3>
-
+              {/* Materiales con Jerarquía */}
               <div className="space-y-4">
-                {isMaterialsLoading && <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>}
-
+                <h3 className="text-lg font-bold flex items-center gap-2"><FolderTree className="h-5 w-5" /> Selección de Materiales</h3>
                 {fields.map((field, index) => {
-                   const selectedMaterialInfo = materialsList.find(m => m.name === watchMaterials[index]?.name);
-                   const subtotal = (Number(watchMaterials[index]?.quantity) || 0) * (selectedMaterialInfo?.price || 0);
+                   const selectedMaterial = materialsList.find(m => m.name === watchMaterials[index]?.name);
                    const searchTerm = searchTerms[index] || "";
-                   const selectedCategory = selectedCategories[index] || "Todas";
+                   const isSearching = searchTerm.length > 0;
                    
-                   const filteredMaterials = materialsList.filter(m => {
-                     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
-                     const matchesCategory = selectedCategory === "Todas" || m.unit === selectedCategory;
-                     return matchesSearch && matchesCategory;
-                   });
+                   const filteredMaterials = materialsList.filter(m => 
+                     m.name.toLowerCase().includes(searchTerm.toLowerCase())
+                   );
 
                   return (
-                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg relative">
-                      <FormField
-                        control={form.control}
-                        name={`materials.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-3">
-                            <FormLabel>Material ({selectedMaterialInfo?.stock || '0'} disp.)</FormLabel>
+                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-card/50">
+                      <FormField control={form.control} name={`materials.${index}.name`} render={({ field }) => (
+                          <FormItem className="md:col-span-6">
+                            <FormLabel>Material</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
-                                  <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className={cn(
-                                      "w-full justify-between font-normal",
-                                      !field.value && "text-muted-foreground"
-                                    )}
-                                    disabled={isMaterialsLoading}
-                                  >
-                                    <span className="truncate">
-                                      {field.value
-                                        ? materialsList.find((m) => m.name === field.value)?.name
-                                        : "Selecciona material..."}
-                                    </span>
-                                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  <Button variant="outline" className={cn("w-full justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                    <span className="truncate">{field.value || "Selecciona material..."}</span>
+                                    <Search className="ml-2 h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
-                              <PopoverContent className="w-[320px] p-0" align="start">
-                                <div className="flex items-center border-b px-3">
-                                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                  <Input
-                                    placeholder="Escribe para buscar..."
-                                    className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
-                                  />
-                                </div>
-                                <div className="flex gap-1 overflow-x-auto p-2 border-b bg-muted/30 scrollbar-hide no-scrollbar">
-                                    <style jsx global>{`
-                                        .no-scrollbar::-webkit-scrollbar { display: none; }
-                                        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-                                    `}</style>
-                                    {categories.map(cat => (
-                                        <Badge
-                                            key={cat}
-                                            variant={selectedCategory === cat ? "default" : "outline"}
-                                            className="cursor-pointer whitespace-nowrap px-2 py-0.5 text-[10px] h-6 flex items-center justify-center transition-colors"
-                                            onClick={() => setSelectedCategories(prev => ({ ...prev, [index]: cat }))}
-                                        >
-                                            {cat}
-                                        </Badge>
-                                    ))}
-                                </div>
-                                <ScrollArea className="h-72">
-                                  <div className="p-1">
-                                    {filteredMaterials.length === 0 && (
-                                      <div className="py-6 text-center text-sm text-muted-foreground">
-                                        No se encontraron materiales.
-                                      </div>
-                                    )}
-                                    {filteredMaterials.map((material) => (
-                                      <Button
-                                        key={material.id}
-                                        variant="ghost"
-                                        className={cn(
-                                          "w-full justify-start font-normal capitalize py-3 h-auto mb-1",
-                                          field.value === material.name && "bg-accent"
-                                        )}
-                                        onClick={() => {
-                                          field.onChange(material.name);
-                                        }}
-                                        disabled={material.stock === 0}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4 shrink-0",
-                                            field.value === material.name ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        <div className="flex items-center gap-3 overflow-hidden">
-                                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border bg-muted">
-                                            <Image
-                                              src={material.imageUrl || '/images/placeholder.png'}
-                                              alt={material.name}
-                                              fill
-                                              className="object-cover"
-                                              unoptimized={!!material.imageUrl}
-                                            />
-                                          </div>
-                                          <div className="flex flex-col text-left overflow-hidden">
-                                            <span className={cn("font-medium truncate", material.stock === 0 && "text-muted-foreground line-through")}>
-                                              {material.name}
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground">
-                                              {material.stock} disp. - ${material.price.toFixed(2)} / {material.unit}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </Button>
-                                    ))}
+                              <PopoverContent className="w-[350px] p-0" align="start">
+                                <div className="p-2 border-b">
+                                  <div className="relative">
+                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                      placeholder="Buscar por nombre..."
+                                      className="pl-8"
+                                      value={searchTerm}
+                                      onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
+                                    />
                                   </div>
+                                </div>
+                                <ScrollArea className="h-[400px]">
+                                  {isSearching ? (
+                                    <div className="p-2 space-y-1">
+                                      {filteredMaterials.map(m => (
+                                        <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
+                                          <div className="flex flex-col items-start">
+                                            <span className="font-bold">{m.name}</span>
+                                            <span className="text-[10px] opacity-70">{m.family} > {m.subfamily}</span>
+                                          </div>
+                                        </Button>
+                                      ))}
+                                      {filteredMaterials.length === 0 && <p className="text-center p-4 text-muted-foreground">Sin resultados</p>}
+                                    </div>
+                                  ) : (
+                                    <Accordion type="single" collapsible className="w-full">
+                                      {Object.entries(hierarchicalMaterials).map(([family, subfamilies]) => (
+                                        <AccordionItem value={family} key={family} className="border-none">
+                                          <AccordionTrigger className="px-4 py-2 hover:no-underline hover:bg-muted/50 text-sm font-bold">
+                                            {family}
+                                          </AccordionTrigger>
+                                          <AccordionContent className="pb-0">
+                                            <Accordion type="single" collapsible className="w-full pl-4 border-l ml-4">
+                                              {Object.entries(subfamilies).map(([subfamily, items]) => (
+                                                <AccordionItem value={subfamily} key={subfamily} className="border-none">
+                                                  <AccordionTrigger className="py-2 hover:no-underline text-xs text-muted-foreground italic">
+                                                    {subfamily} ({items.length})
+                                                  </AccordionTrigger>
+                                                  <AccordionContent className="pb-2">
+                                                    <div className="flex flex-col gap-1 pr-2">
+                                                      {items.map(m => (
+                                                        <Button key={m.id} variant="ghost" className="justify-start h-auto py-2 text-xs font-normal" onClick={() => field.onChange(m.name)}>
+                                                          <ChevronRight className="h-3 w-3 mr-2 opacity-50" />
+                                                          <span className="truncate">{m.name}</span>
+                                                          <span className="ml-auto opacity-60">${m.price}/{m.unit}</span>
+                                                        </Button>
+                                                      ))}
+                                                    </div>
+                                                  </AccordionContent>
+                                                </AccordionItem>
+                                              ))}
+                                            </Accordion>
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      ))}
+                                    </Accordion>
+                                  )}
                                 </ScrollArea>
                               </PopoverContent>
                             </Popover>
                             <FormMessage />
                           </FormItem>
-                        )}
-                      />
+                        )} />
 
-                      <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor={`unit-price-${index}`}>P. Unitario</Label>
-                          <Input
-                            id={`unit-price-${index}`}
-                            readOnly 
-                            value={selectedMaterialInfo ? `$${selectedMaterialInfo.price.toFixed(2)} / ${selectedMaterialInfo.unit}`: '$0.00'} 
-                            className="bg-muted"
-                          />
+                      <div className="md:col-span-2">
+                          <Label className="text-xs">P. Unitario</Label>
+                          <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}`: '-'} className="bg-muted text-xs h-10" />
                       </div>
 
-                      <FormField
-                        control={form.control}
-                        name={`materials.${index}.quantity`}
-                        render={({ field }) => (
+                      <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
                           <FormItem className="md:col-span-2">
-                            <FormLabel>Cantidad</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                inputMode="numeric"
-                                placeholder="0"
-                                {...field}
-                                value={field.value as number}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  const newQuantity = value === '' ? '' : Number(value);
-                                
-                                  if (newQuantity === '') {
-                                    field.onChange('');
-                                    return;
-                                  }
-                                
-                                  const selectedMaterialName = form.getValues(`materials.${index}.name`);
-                                  if (selectedMaterialName) {
-                                    const materialInfo = materialsList.find(m => m.name === selectedMaterialName);
-                                    if (materialInfo && newQuantity > materialInfo.stock) {
-                                      toast({
-                                        variant: "destructive",
-                                        title: "Stock insuficiente",
-                                        description: `Solo quedan ${materialInfo.stock} unidades de este material.`,
-                                      });
-                                      return;
-                                    }
-                                  }
-                                  
-                                  field.onChange(newQuantity);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
+                            <FormLabel className="text-xs">Cantidad</FormLabel>
+                            <FormControl><Input type="number" {...field} className="h-10" /></FormControl>
                           </FormItem>
-                        )}
-                      />
+                        )} />
                       
-                      <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor={`subtotal-${index}`}>Subtotal</Label>
-                          <Input
-                            id={`subtotal-${index}`}
-                            readOnly 
-                            value={`$${subtotal.toFixed(2)}`} 
-                            className="bg-muted font-bold"
-                          />
+                      <div className="md:col-span-1 flex justify-center pb-0.5">
+                        <Button variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-
-                      {fields.length > 1 && (
-                         <div className="md:col-span-1">
-                          <Button variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:bg-destructive/10">
-                            <Trash2 className="h-5 w-5" />
-                            <span className="sr-only">Eliminar material</span>
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   )
                 })}
 
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => append({ name: '', quantity: 0 })}
-                  className="w-full md:w-auto"
-                  disabled={isMaterialsLoading}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Añadir otro material
+                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 0 })} className="w-full">
+                  <Plus className="mr-2 h-4 w-4" /> Añadir otro material
                 </Button>
-
-                {watchMaterials.length > 0 && total > 0 && (
-                   <div className="flex justify-end pt-4">
-                      <div className="w-full md:w-1/3">
-                          <Label className="text-lg font-semibold" htmlFor="total-order">Total del Pedido</Label>
-                          <Input
-                            id="total-order"
-                            readOnly 
-                            value={`$${total.toFixed(2)}`} 
-                            className="bg-muted font-bold text-2xl h-12 mt-2"
-                          />
-                      </div>
-                  </div>
-                )}
               </div>
 
-              <h3 className="text-lg font-semibold border-b pb-2 pt-4">Cronograma de Entrega</h3>
-              <FormField
-                control={form.control}
-                name="deliveryDates"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Fechas de Entrega</FormLabel>
+              {/* Total y Fechas */}
+              <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
+                <FormField control={form.control} name="deliveryDates" render={({ field }) => (
+                  <FormItem className="w-full max-w-sm">
+                    <FormLabel>Cronograma de Entrega</FormLabel>
                     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <DialogTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full max-w-sm justify-start text-left font-normal",
-                              !field.value.from && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value.from ? (
-                              field.value.to ? (
-                                <>
-                                  {format(field.value.from, "PPP", { locale: es })} -{" "}
-                                  {format(field.value.to, "PPP", { locale: es })}
-                                </>
-                              ) : (
-                                format(field.value.from, "PPP", { locale: es })
-                              )
-                            ) : (
-                              <span>Elige un rango de fechas</span>
-                            )}
-                          </Button>
-                        </FormControl>
+                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value?.from ? (field.value.to ? `${format(field.value.from, "PP")} - ${format(field.value.to, "PP")}` : format(field.value.from, "PP")) : <span>Rango de fechas</span>}
+                        </Button>
                       </DialogTrigger>
-                      <DialogContent className="w-auto sm:max-w-4xl flex justify-center">
-                        <div className="flex flex-col items-center">
-                          <DialogHeader>
-                            <DialogTitle>Selecciona las Fechas</DialogTitle>
-                            <DialogDescription>
-                              Selecciona una fecha de inicio y una fecha final para la entrega.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={field.value.from}
-                            selected={{from: field.value.from!, to: field.value.to}}
-                            onSelect={(dateRange) => {
-                              field.onChange(dateRange)
-                            }}
-                            numberOfMonths={2}
-                            locale={es}
-                            className="p-4"
-                            disabled={isMounted ? { before: new Date() } : { before: new Date('1970-01-01')}}
-                          />
-                          <DialogFooter className="pt-4">
-                            <DialogClose asChild>
-                              <Button onClick={() => setIsCalendarOpen(false)}>Confirmar</Button>
-                            </DialogClose>
-                          </DialogFooter>
-                        </div>
+                      <DialogContent className="sm:max-w-4xl">
+                        <Calendar mode="range" selected={{from: field.value?.from!, to: field.value?.to}} onSelect={field.onChange} numberOfMonths={2} locale={es} disabled={{ before: new Date() }} />
+                        <DialogFooter><Button onClick={() => setIsCalendarOpen(false)}>Confirmar</Button></DialogFooter>
                       </DialogContent>
                     </Dialog>
-                    <FormDescription>
-                        Define el periodo en el que puedes recibir el material.
-                    </FormDescription>
-                    <FormMessage />
                   </FormItem>
-                )}
-              />
+                )} />
 
-              <div className="flex justify-end pt-4">
-                  <Button size="lg" type="submit" disabled={isProcessing || isSubmitting || isMaterialsLoading}>
-                      {isProcessing || isSubmitting ? (
-                          <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Procesando Pedido...
-                          </>
-                      ) : (
-                        'Confirmar y Enviar Pedido'
-                      )}
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground uppercase font-bold">Total Estimado</p>
+                  <p className="text-4xl font-extrabold text-primary">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                  <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing || isSubmitting || total === 0}>
+                    {isProcessing || isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirmar Pedido'}
                   </Button>
+                </div>
               </div>
             </form>
           </Form>
