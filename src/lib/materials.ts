@@ -26,32 +26,71 @@ export type Material = PublicMaterial;
 
 /**
  * Obtiene los materiales para la vista pública del cliente.
+ * Implementa Joins para obtener la jerarquía de Familias y Subfamilias.
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   try {
-    // Intentamos traer familia y subfamilia. Si son tablas relacionadas, 
-    // Supabase permite traer los nombres si las FK están configuradas.
-    // Asumimos una estructura común o que los campos están en la tabla materiales.
     const { data, error } = await supabase
       .from('materiales')
-      .select('id, nombre, precio, stock, categoria, descripcion, image_url, familia, subfamilia')
+      .select(`
+        id, 
+        nombre, 
+        precio, 
+        stock, 
+        categoria, 
+        descripcion, 
+        image_url,
+        subfamilias (
+          nombre,
+          familias (
+            nombre
+          )
+        )
+      `)
       .order('nombre', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error de Supabase al obtener materiales:", error.message, error.details);
+      // Fallback a una consulta simple si el Join falla por falta de relaciones definidas
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('materiales')
+        .select('id, nombre, precio, stock, categoria, descripcion, image_url')
+        .order('nombre', { ascending: true });
+      
+      if (simpleError) throw simpleError;
+      
+      return (simpleData || []).map(item => ({
+        id: item.id,
+        name: item.nombre,
+        price: item.precio,
+        stock: item.stock,
+        unit: item.categoria || '',
+        description: item.descripcion || '',
+        imageUrl: item.image_url || null,
+        family: 'General',
+        subfamily: 'Varios',
+      }));
+    }
 
-    return (data || []).map(item => ({
-      id: item.id,
-      name: item.nombre,
-      price: item.precio,
-      stock: item.stock,
-      unit: item.categoria || '',
-      description: item.descripcion || '',
-      imageUrl: item.image_url || null,
-      family: item.familia || 'General',
-      subfamily: item.subfamilia || 'Varios',
-    }));
-  } catch (error) {
-    console.error("Error fetching materials:", error);
+    return (data || []).map(item => {
+      // Manejar el hecho de que subfamilias puede venir como objeto o array dependiendo del driver/relación
+      const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
+      const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
+
+      return {
+        id: item.id,
+        name: item.nombre,
+        price: item.precio,
+        stock: item.stock,
+        unit: item.categoria || '',
+        description: item.descripcion || '',
+        imageUrl: item.image_url || null,
+        family: fam?.nombre || 'General',
+        subfamily: subfam?.nombre || 'Varios',
+      };
+    });
+  } catch (error: any) {
+    console.error("Error crítico en getPublicMaterials:", error.message || error);
     return [];
   }
 }
@@ -63,26 +102,50 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   try {
     const { data, error } = await supabase
       .from('materiales')
-      .select('id, nombre, precio, stock, categoria, descripcion, image_url, familia, subfamilia, cost, created_at')
+      .select(`
+        id, 
+        nombre, 
+        precio, 
+        stock, 
+        categoria, 
+        descripcion, 
+        image_url, 
+        cost, 
+        created_at,
+        subfamilias (
+          nombre,
+          familias (
+            nombre
+          )
+        )
+      `)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error de Supabase al obtener materiales (Admin):", error.message);
+      return [];
+    }
 
-    return (data || []).map(item => ({
-      id: item.id,
-      name: item.nombre,
-      price: item.precio,
-      stock: item.stock,
-      unit: item.categoria || '',
-      description: item.descripcion || '',
-      imageUrl: item.image_url || null,
-      family: item.familia || 'General',
-      subfamily: item.subfamilia || 'Varios',
-      cost: item.cost || 0,
-      createdAt: item.created_at,
-    }));
-  } catch (error) {
-    console.error("Error fetching admin materials:", error);
+    return (data || []).map(item => {
+      const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
+      const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
+
+      return {
+        id: item.id,
+        name: item.nombre,
+        price: item.precio,
+        stock: item.stock,
+        unit: item.categoria || '',
+        description: item.descripcion || '',
+        imageUrl: item.image_url || null,
+        family: fam?.nombre || 'General',
+        subfamily: subfam?.nombre || 'Varios',
+        cost: item.cost || 0,
+        createdAt: item.created_at,
+      };
+    });
+  } catch (error: any) {
+    console.error("Error crítico en getAdminMaterials:", error.message || error);
     return [];
   }
 }
