@@ -25,8 +25,9 @@ import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { getMaterials, type Material } from "@/lib/materials";
 import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Dialog, DialogContent, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -258,7 +259,7 @@ export default function NewOrderPage() {
                   <FormItem><FormLabel>N°</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="colony" render={({ field }) => (
-                  <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage></FormItem>
                 )} />
                 <FormField control={form.control} name="state" render={({ field }) => (
                   <FormItem><FormLabel>Estado</FormLabel>
@@ -299,7 +300,7 @@ export default function NewOrderPage() {
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
-                                  <Button variant="outline" className={cn("w-full h-12 justify-between font-normal", !field.value && "text-muted-foreground")}>
+                                  <Button variant="outline" className={cn("w-full h-12 justify-between font-normal bg-card", !field.value && "text-muted-foreground")}>
                                     <div className="flex items-center gap-2 truncate">
                                         {selectedMaterial?.imageUrl && (
                                             <div className="relative w-8 h-8 rounded overflow-hidden shrink-0 border">
@@ -460,22 +461,37 @@ export default function NewOrderPage() {
                     <FormLabel>Cronograma de Entrega</FormLabel>
                     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Button variant="outline" className="w-full h-12 justify-start text-left font-normal bg-card">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value?.from ? (field.value.to ? `${format(field.value.from, "PP")} - ${format(field.value.to, "PP")}` : format(field.value.from, "PP")) : <span>Rango de fechas</span>}
+                          {field.value?.from ? (field.value.to ? `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}` : format(field.value.from, "PP", { locale: es })) : <span>Selecciona período de entrega</span>}
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-4xl">
+                        <DialogHeader>
+                          <DialogTitle>Seleccionar Período de Entrega</DialogTitle>
+                          <DialogDescription>
+                            Elige el rango de fechas programado para recibir tus materiales en la obra.
+                          </DialogDescription>
+                        </DialogHeader>
                         <div className="p-4 flex justify-center">
-                          <div className="border rounded-md">
-                             <div className="p-2 bg-muted text-center text-xs font-bold uppercase tracking-wider">Selecciona el rango de entrega</div>
-                             {/* Nota: Calendar se renderiza aquí para la selección */}
-                             {/* Importado desde shadcn components */}
-                          </div>
+                          <Calendar
+                            mode="range"
+                            selected={{ from: field.value?.from, to: field.value?.to }}
+                            onSelect={(range) => {
+                                field.onChange(range);
+                            }}
+                            numberOfMonths={2}
+                            locale={es}
+                            className="rounded-md border shadow"
+                            disabled={{ before: new Date() }}
+                          />
                         </div>
-                        <DialogFooter><Button onClick={() => setIsCalendarOpen(false)}>Confirmar</Button></DialogFooter>
+                        <DialogFooter>
+                          <Button onClick={() => setIsCalendarOpen(false)}>Confirmar Selección</Button>
+                        </DialogFooter>
                       </DialogContent>
                     </Dialog>
+                    <FormMessage />
                   </FormItem>
                 )} />
 
