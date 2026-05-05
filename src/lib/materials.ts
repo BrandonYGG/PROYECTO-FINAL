@@ -25,8 +25,18 @@ export interface ProductCatalogItem {
 export type Material = PublicMaterial;
 
 /**
+ * Función de utilidad para limpiar unidades que sean UUIDs o nulas
+ */
+function formatUnit(unit: string | null): string {
+  if (!unit) return 'Pza';
+  // Si la unidad parece un UUID (contiene guiones y muchos caracteres), devolvemos un fallback
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(unit)) return 'Pza';
+  return unit;
+}
+
+/**
  * Obtiene los materiales para la vista pública del cliente.
- * Implementa Joins para obtener la jerarquía de Familias y Subfamilias.
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   try {
@@ -37,7 +47,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         nombre, 
         precio, 
         stock, 
-        categoria, 
+        unidad, 
         descripcion, 
         image_url,
         subfamilias (
@@ -50,11 +60,10 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       .order('nombre', { ascending: true });
 
     if (error) {
-      console.warn("Supabase Join falló o error en consulta:", error.message);
-      // Fallback a consulta simple si el join falla por configuración de DB
+      console.warn("Supabase Join falló, intentando consulta simple:", error.message);
       const { data: simpleData, error: simpleError } = await supabase
         .from('materiales')
-        .select('id, nombre, precio, stock, categoria, descripcion, image_url')
+        .select('id, nombre, precio, stock, unidad, descripcion, image_url')
         .order('nombre', { ascending: true });
       
       if (simpleError) throw simpleError;
@@ -64,7 +73,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: item.categoria || 'Pza',
+        unit: formatUnit(item.unidad),
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: 'General',
@@ -73,7 +82,6 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
     }
 
     return (data || []).map(item => {
-      // Manejo de la estructura de respuesta de Supabase para Joins (puede ser objeto o array)
       const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
       const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
 
@@ -82,7 +90,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: item.categoria || 'Pza',
+        unit: formatUnit(item.unidad),
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
@@ -107,7 +115,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         nombre, 
         precio, 
         stock, 
-        categoria, 
+        unidad, 
         descripcion, 
         image_url, 
         cost, 
@@ -135,7 +143,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: item.categoria || 'Pza',
+        unit: formatUnit(item.unidad),
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
@@ -154,9 +162,6 @@ export async function getMaterials(): Promise<PublicMaterial[]> {
   return getPublicMaterials();
 }
 
-/**
- * Agrupa los materiales por nombre base para el catálogo (opcional).
- */
 export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 

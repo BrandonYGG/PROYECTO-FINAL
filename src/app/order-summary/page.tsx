@@ -70,6 +70,13 @@ function OrderSummaryContent() {
     getMaterials().then(setMaterialsCatalog);
   }, []);
 
+  const getCleanUnit = (materialName: string) => {
+    const info = materialsCatalog.find(m => m.name === materialName);
+    const unit = info?.unit || 'Pza';
+    // Si la unidad parece un UUID, devolver Pza
+    return unit.length > 20 ? 'Pza' : unit;
+  }
+
   const generatePdf = async () => {
     if (!orderData || !summaryRef.current || materialsCatalog.length === 0) return;
     setIsGeneratingPdf(true);
@@ -113,7 +120,8 @@ function OrderSummaryContent() {
         const materialInfo = materialsCatalog.find(m => m.name === material.name);
         const unitPrice = materialInfo?.price || 0;
         const subtotal = material.quantity * unitPrice;
-        return [material.name, `${material.quantity} ${materialInfo?.unit}(s)`, `$${unitPrice.toFixed(2)}`, `$${subtotal.toFixed(2)}`];
+        const unitName = getCleanUnit(material.name);
+        return [material.name, `${material.quantity} ${unitName}(s)`, `$${unitPrice.toFixed(2)}`, `$${subtotal.toFixed(2)}`];
       });
       doc.autoTable({
         startY: lastY,
@@ -257,10 +265,11 @@ function OrderSummaryContent() {
                     const materialInfo = materialsCatalog.find(m => m.name === material.name);
                     const unitPrice = materialInfo?.price || 0;
                     const subtotal = material.quantity * unitPrice;
+                    const unitName = getCleanUnit(material.name);
                     return (
                       <TableRow key={index}>
                         <TableCell className="capitalize">{material.name}</TableCell>
-                        <TableCell className="text-center">{material.quantity} {materialInfo?.unit}(s)</TableCell>
+                        <TableCell className="text-center">{material.quantity} {unitName}(s)</TableCell>
                         <TableCell className="text-right">${unitPrice.toFixed(2)}</TableCell>
                         <TableCell className="text-right">${subtotal.toFixed(2)}</TableCell>
                       </TableRow>
