@@ -25,18 +25,8 @@ export interface ProductCatalogItem {
 export type Material = PublicMaterial;
 
 /**
- * Función de utilidad para limpiar unidades que sean UUIDs o nulas
- */
-function formatUnit(unit: string | null): string {
-  if (!unit) return 'Pza';
-  // Si la unidad parece un UUID (contiene guiones y muchos caracteres), devolvemos un fallback
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(unit)) return 'Pza';
-  return unit;
-}
-
-/**
  * Obtiene los materiales para la vista pública del cliente.
+ * Se eliminó el campo 'unidad' que no existe en la tabla y se usa 'Pza' por defecto.
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   try {
@@ -47,7 +37,6 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         nombre, 
         precio, 
         stock, 
-        unidad, 
         descripcion, 
         image_url,
         subfamilias (
@@ -63,7 +52,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       console.warn("Supabase Join falló, intentando consulta simple:", error.message);
       const { data: simpleData, error: simpleError } = await supabase
         .from('materiales')
-        .select('id, nombre, precio, stock, unidad, descripcion, image_url')
+        .select('id, nombre, precio, stock, descripcion, image_url')
         .order('nombre', { ascending: true });
       
       if (simpleError) throw simpleError;
@@ -73,7 +62,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: formatUnit(item.unidad),
+        unit: 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: 'General',
@@ -90,7 +79,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: formatUnit(item.unidad),
+        unit: 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
@@ -115,7 +104,6 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         nombre, 
         precio, 
         stock, 
-        unidad, 
         descripcion, 
         image_url, 
         cost, 
@@ -143,7 +131,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: formatUnit(item.unidad),
+        unit: 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
@@ -155,6 +143,35 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   } catch (error: any) {
     console.error("Error crítico en getAdminMaterials:", error?.message || "Error desconocido");
     return [];
+  }
+}
+
+/**
+ * Actualiza el stock de un material en Supabase restando la cantidad solicitada.
+ */
+export async function updateMaterialStock(materialId: number, quantityToSubtract: number) {
+  try {
+    const { data: material, error: fetchError } = await supabase
+      .from('materiales')
+      .select('stock')
+      .eq('id', materialId)
+      .single();
+
+    if (fetchError || !material) throw new Error(`Material ID ${materialId} no encontrado`);
+
+    const newStock = material.stock - quantityToSubtract;
+    
+    const { error: updateError } = await supabase
+      .from('materiales')
+      .update({ stock: newStock })
+      .eq('id', materialId);
+
+    if (updateError) throw updateError;
+    
+    return true;
+  } catch (error) {
+    console.error("Error al actualizar stock en Supabase:", error);
+    throw error;
   }
 }
 

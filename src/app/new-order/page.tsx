@@ -21,7 +21,7 @@ import { useFirestore, useUser } from "@/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
-import { getMaterials, type Material } from "@/lib/materials";
+import { getMaterials, updateMaterialStock, type Material } from "@/lib/materials";
 import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -201,6 +201,7 @@ export default function NewOrderPage() {
     setIsSubmitting(true);
 
     try {
+        // 1. Guardar el pedido en Firestore
         const orderData = { 
             ...formData, 
             location,
@@ -214,10 +215,18 @@ export default function NewOrderPage() {
         const ordersRef = collection(firestore, 'users', user.uid, 'orders');
         await addDoc(ordersRef, orderData);
 
-        toast({ title: "Pedido Enviado", description: "Tu pedido se ha guardado correctamente." });
+        // 2. Descontar el stock en Supabase para cada material
+        for (const item of formData.materials) {
+            const materialInfo = materialsList.find(m => m.name === item.name);
+            if (materialInfo) {
+                await updateMaterialStock(materialInfo.id, item.quantity);
+            }
+        }
+
+        toast({ title: "Pedido Enviado", description: "Tu pedido se ha guardado correctamente y el inventario ha sido actualizado." });
         router.push('/profile');
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Error", description: error.message });
+        toast({ variant: "destructive", title: "Error", description: "Hubo un problema al procesar el pedido: " + error.message });
         setIsSubmitting(false);
         setIsProcessing(false);
     }
