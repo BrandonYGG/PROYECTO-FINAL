@@ -147,7 +147,30 @@ export default async function Home() {
         </div>
       </section>
 
-      <section id="why-us" className="py-20 md:py-28 bg-secondary/10">
+      <section id="block-video" className="py-20 md:py-28 bg-secondary/10">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl md:text-5xl font-headline font-bold">
+            Así Nace la Calidad: La Fabricación de Nuestros Blocks
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
+            La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad
+          </p>
+          <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+            <video
+              src="/block-manufacturing.mp4"
+              width="1920"
+              height="1080"
+              controls
+              playsInline
+              className="w-full h-auto"
+            >
+              Tu navegador no soporta el tag de video.
+            </video>
+          </div>
+        </div>
+      </section>
+
+      <section id="why-us" className="py-20 md:py-28 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
@@ -181,7 +204,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section id="gallery" className="py-20 md:py-28 bg-background">
+      <section id="gallery" className="py-20 md:py-28 bg-secondary/10">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
@@ -218,7 +241,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section id="featured-materials" className="py-20 md:py-28 bg-secondary/10">
+      <section id="featured-materials" className="py-20 md:py-28 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
@@ -333,29 +356,6 @@ export default async function Home() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="block-video" className="py-20 md:py-28 bg-background">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl md:text-5xl font-headline font-bold">
-            Así Nace la Calidad: La Fabricación de Nuestros Blocks
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad
-          </p>
-          <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
-            <video
-              src="/block-manufacturing.mp4"
-              width="1920"
-              height="1080"
-              controls
-              playsInline
-              className="w-full h-auto"
-            >
-              Tu navegador no soporta el tag de video.
-            </video>
           </div>
         </div>
       </section>
