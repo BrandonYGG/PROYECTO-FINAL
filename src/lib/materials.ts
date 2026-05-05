@@ -50,8 +50,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       .order('nombre', { ascending: true });
 
     if (error) {
-      console.error("Error de Supabase al obtener materiales:", error.message, error.details);
-      // Fallback a una consulta simple si el Join falla por falta de relaciones definidas
+      console.warn("Supabase Join falló, reintentando consulta simple:", error.message);
       const { data: simpleData, error: simpleError } = await supabase
         .from('materiales')
         .select('id, nombre, precio, stock, categoria, descripcion, image_url')
@@ -73,7 +72,6 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
     }
 
     return (data || []).map(item => {
-      // Manejar el hecho de que subfamilias puede venir como objeto o array dependiendo del driver/relación
       const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
       const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
 
@@ -90,7 +88,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error crítico en getPublicMaterials:", error.message || error);
+    console.error("Error crítico en getPublicMaterials:", error?.message || error);
     return [];
   }
 }
@@ -145,7 +143,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error crítico en getAdminMaterials:", error.message || error);
+    console.error("Error crítico en getAdminMaterials:", error?.message || error);
     return [];
   }
 }

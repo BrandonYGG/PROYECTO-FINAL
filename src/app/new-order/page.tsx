@@ -31,7 +31,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
-  quantity: z.coerce.number().min(1, { message: "La cantidad debe ser mayor a 0." }),
+  quantity: z.coerce.number().min(0.01, { message: "La cantidad debe ser mayor a 0." }),
 });
 
 const orderSchema = z.object({
@@ -156,7 +156,6 @@ export default function NewOrderPage() {
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
 
-    // VALIDACIÓN DE STOCK ESTRICTA
     let hasStockError = false;
     values.materials.forEach((item, index) => {
       const materialInfo = materialsList.find(m => m.name === item.name);
@@ -237,7 +236,6 @@ export default function NewOrderPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleInitialSubmit)} className="space-y-6">
-              {/* Información de Contacto */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6">
                 <FormField control={form.control} name="requesterName" render={({ field }) => (
                   <FormItem><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>
@@ -250,7 +248,6 @@ export default function NewOrderPage() {
                 )} />
               </div>
 
-              {/* Dirección */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
                 <FormField control={form.control} name="street" render={({ field }) => (
                   <FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -259,7 +256,7 @@ export default function NewOrderPage() {
                   <FormItem><FormLabel>N°</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="colony" render={({ field }) => (
-                  <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormMessage></FormItem>
+                  <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="state" render={({ field }) => (
                   <FormItem><FormLabel>Estado</FormLabel>
@@ -279,7 +276,6 @@ export default function NewOrderPage() {
                 )} />
               </div>
 
-              {/* Materiales con Jerarquía */}
               <div className="space-y-4">
                 <h3 className="text-lg font-bold flex items-center gap-2"><FolderTree className="h-5 w-5" /> Selección de Materiales</h3>
                 {fields.map((field, index) => {
@@ -409,7 +405,7 @@ export default function NewOrderPage() {
                         )} />
 
                       <div className="md:col-span-2">
-                          <Label className="text-xs">Precio Sugerido</Label>
+                          <Label className="text-xs">Precio Unitario</Label>
                           <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}`: '-'} className="bg-muted text-xs h-10" />
                       </div>
 
@@ -420,6 +416,7 @@ export default function NewOrderPage() {
                               <div className="relative">
                                 <Input 
                                   type="number" 
+                                  step="0.01"
                                   {...field} 
                                   className={cn(
                                     "h-10 pr-10",
@@ -454,7 +451,6 @@ export default function NewOrderPage() {
                 </Button>
               </div>
 
-              {/* Total y Fechas */}
               <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
                 <FormField control={form.control} name="deliveryDates" render={({ field }) => (
                   <FormItem className="w-full max-w-sm">
