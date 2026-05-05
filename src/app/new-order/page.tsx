@@ -4,8 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,6 +27,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -56,13 +56,10 @@ type OrderFormData = z.infer<typeof orderSchema>;
 function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
-
     const diffTime = start.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
     if (diffDays <= 3) return 'Urgente';
     if (diffDays <= 7) return 'Pronto';
     return 'Normal';
@@ -215,10 +212,10 @@ export default function NewOrderPage() {
         };
 
         const ordersRef = collection(firestore, 'users', user.uid, 'orders');
-        const docRef = await addDoc(ordersRef, orderData);
+        await addDoc(ordersRef, orderData);
 
         toast({ title: "Pedido Enviado", description: "Tu pedido se ha guardado correctamente." });
-        router.push(`/order-summary?userId=${user.uid}&orderId=${docRef.id}`);
+        router.push('/profile');
     } catch (error: any) {
         toast({ variant: "destructive", title: "Error", description: error.message });
         setIsSubmitting(false);
@@ -231,7 +228,7 @@ export default function NewOrderPage() {
       <Card className="max-w-4xl mx-auto shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
-          <CardDescription>Selecciona tus materiales y verifica la disponibilidad.</CardDescription>
+          <CardDescription>Selecciona tus materiales y verifica la disponibilidad en tiempo real.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -438,7 +435,7 @@ export default function NewOrderPage() {
                         )} />
                       
                       <div className="md:col-span-1 flex justify-center pb-0.5">
-                        <Button variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}>
+                        <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -457,7 +454,7 @@ export default function NewOrderPage() {
                     <FormLabel>Cronograma de Entrega</FormLabel>
                     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full h-12 justify-start text-left font-normal bg-card">
+                        <Button variant="outline" type="button" className="w-full h-12 justify-start text-left font-normal bg-card">
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {field.value?.from ? (field.value.to ? `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}` : format(field.value.from, "PP", { locale: es })) : <span>Selecciona período de entrega</span>}
                         </Button>
@@ -483,7 +480,7 @@ export default function NewOrderPage() {
                           />
                         </div>
                         <DialogFooter>
-                          <Button onClick={() => setIsCalendarOpen(false)}>Confirmar Selección</Button>
+                          <Button type="button" onClick={() => setIsCalendarOpen(false)}>Confirmar Selección</Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>

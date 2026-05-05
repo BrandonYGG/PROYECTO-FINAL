@@ -50,7 +50,8 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       .order('nombre', { ascending: true });
 
     if (error) {
-      console.warn("Supabase Join falló, reintentando consulta simple:", error.message);
+      console.warn("Supabase Join falló o error en consulta:", error.message);
+      // Fallback a consulta simple si el join falla por configuración de DB
       const { data: simpleData, error: simpleError } = await supabase
         .from('materiales')
         .select('id, nombre, precio, stock, categoria, descripcion, image_url')
@@ -63,7 +64,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: item.categoria || '',
+        unit: item.categoria || 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: 'General',
@@ -72,6 +73,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
     }
 
     return (data || []).map(item => {
+      // Manejo de la estructura de respuesta de Supabase para Joins (puede ser objeto o array)
       const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
       const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
 
@@ -80,7 +82,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: item.categoria || '',
+        unit: item.categoria || 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
@@ -88,7 +90,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error crítico en getPublicMaterials:", error?.message || error);
+    console.error("Error crítico en getPublicMaterials:", error?.message || "Error desconocido");
     return [];
   }
 }
@@ -133,7 +135,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         name: item.nombre,
         price: item.precio,
         stock: item.stock,
-        unit: item.categoria || '',
+        unit: item.categoria || 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
@@ -143,7 +145,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error crítico en getAdminMaterials:", error?.message || error);
+    console.error("Error crítico en getAdminMaterials:", error?.message || "Error desconocido");
     return [];
   }
 }
@@ -153,7 +155,7 @@ export async function getMaterials(): Promise<PublicMaterial[]> {
 }
 
 /**
- * Agrupa los materiales por nombre base para el catálogo.
+ * Agrupa los materiales por nombre base para el catálogo (opcional).
  */
 export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
