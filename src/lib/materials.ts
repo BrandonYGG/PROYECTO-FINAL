@@ -118,11 +118,15 @@ export async function getMaterials(): Promise<PublicMaterial[]> {
   return getPublicMaterials();
 }
 
+/**
+ * Agrupa los materiales por su nombre base (sin variantes) para el catálogo.
+ */
 export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 
   const catalog = materials.reduce((acc, material) => {
-    const productName = material.name.split(' (')[0].trim();
+    // Limpia el nombre para agrupar variantes (ej: "Varilla (3/8)" -> "Varilla")
+    const productName = material.name.split(' (')[0].split('  ')[0].trim();
     const existing = acc.find(p => p.productName === productName);
 
     if (existing) {
@@ -141,4 +145,23 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   });
 
   return catalog;
+}
+
+/**
+ * Obtiene solo algunos productos destacados, uno por cada familia principal.
+ */
+export async function getHomePageFeaturedProducts(): Promise<ProductCatalogItem[]> {
+  const catalog = await getProductCatalog();
+  const featuredByFamily: Record<string, ProductCatalogItem> = {};
+  
+  catalog.forEach(item => {
+    const family = item.variants[0]?.family || 'Varios';
+    // Si la familia aún no tiene un representante, lo asignamos
+    if (!featuredByFamily[family]) {
+      featuredByFamily[family] = item;
+    }
+  });
+
+  // Convertimos a array y limitamos a 8 para que la página cargue rápido y se vea bien
+  return Object.values(featuredByFamily).slice(0, 8);
 }

@@ -4,7 +4,7 @@ import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getProductCatalog } from '@/lib/materials';
+import { getHomePageFeaturedProducts } from '@/lib/materials';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -90,8 +90,7 @@ const galleryImages = [
 ];
 
 export default async function Home() {
-  const productCatalog = await getProductCatalog();
-  const featuredProducts = productCatalog;
+  const featuredProducts = await getHomePageFeaturedProducts();
 
   return (
     <div className="flex flex-col animate-fade-in">
@@ -226,7 +225,7 @@ export default async function Home() {
               Nuestros Materiales Populares
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              La base de todo gran proyecto. Descubre nuestra selección de materiales de primera calidad.
+              Explora nuestra selección por familias. La base de todo gran proyecto.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -288,8 +287,13 @@ export default async function Home() {
                     )}
                   </CardHeader>
                   <CardContent className="p-6 flex-grow">
+                    <div className="mb-2">
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                            {product.variants[0]?.family}
+                        </span>
+                    </div>
                     <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
-                    <CardDescription className="mt-2 text-sm">{product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`}</CardDescription>
+                    <CardDescription className="mt-2 text-sm line-clamp-2">{product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`}</CardDescription>
                   </CardContent>
                 </Card>
               );
