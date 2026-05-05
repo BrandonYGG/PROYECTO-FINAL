@@ -208,7 +208,7 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
-              Nuestros Materiales en la Obra
+              Productos estrella
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Calidad que se ve y se siente. Un vistazo a cómo nuestros productos transforman proyectos en realidades duraderas.
