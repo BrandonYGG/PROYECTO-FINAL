@@ -241,7 +241,18 @@ export default function NewOrderPage() {
                   <FormItem><FormLabel>Obra</FormLabel><FormControl><Input placeholder="Nombre del proyecto" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="tel" 
+                        placeholder="Solo números" 
+                        {...field} 
+                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
               </div>
 
@@ -250,7 +261,17 @@ export default function NewOrderPage() {
                   <FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="number" render={({ field }) => (
-                  <FormItem><FormLabel>N°</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>N°</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Números" 
+                        {...field} 
+                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="colony" render={({ field }) => (
                   <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -269,6 +290,19 @@ export default function NewOrderPage() {
                       <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
                       <SelectContent>{selectedState?.municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                     </Select>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="postalCode" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>C.P.</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="5 dígitos" 
+                        {...field} 
+                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )} />
               </div>
