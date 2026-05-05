@@ -201,7 +201,6 @@ export default function NewOrderPage() {
     setIsSubmitting(true);
 
     try {
-        // 1. Guardar el pedido en Firestore
         const orderData = { 
             ...formData, 
             location,
@@ -215,7 +214,6 @@ export default function NewOrderPage() {
         const ordersRef = collection(firestore, 'users', user.uid, 'orders');
         await addDoc(ordersRef, orderData);
 
-        // 2. Descontar el stock en Supabase para cada material
         for (const item of formData.materials) {
             const materialInfo = materialsList.find(m => m.name === item.name);
             if (materialInfo) {
@@ -354,7 +352,7 @@ export default function NewOrderPage() {
                                   <div className="relative">
                                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                      placeholder="Buscar por nombre o familia..."
+                                      placeholder="Buscar por nombre o marca..."
                                       className="pl-8"
                                       value={searchTerm}
                                       onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}

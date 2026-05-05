@@ -25,67 +25,28 @@ export interface ProductCatalogItem {
 export type Material = PublicMaterial;
 
 /**
- * Obtiene los materiales para la vista pública del cliente.
- * Se eliminó el campo 'unidad' que no existe en la tabla y se usa 'Pza' por defecto.
+ * Obtiene los materiales usando los nombres de columna confirmados por el usuario.
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   try {
     const { data, error } = await supabase
       .from('materiales')
-      .select(`
-        id, 
-        nombre, 
-        precio, 
-        stock, 
-        descripcion, 
-        image_url,
-        subfamilias (
-          nombre,
-          familias (
-            nombre
-          )
-        )
-      `)
+      .select('id, nombre, precio, stock, descripcion, image_url, unit, categoria, marca')
       .order('nombre', { ascending: true });
 
-    if (error) {
-      console.warn("Supabase Join falló, intentando consulta simple:", error.message);
-      const { data: simpleData, error: simpleError } = await supabase
-        .from('materiales')
-        .select('id, nombre, precio, stock, descripcion, image_url')
-        .order('nombre', { ascending: true });
-      
-      if (simpleError) throw simpleError;
-      
-      return (simpleData || []).map(item => ({
-        id: item.id,
-        name: item.nombre,
-        price: item.precio,
-        stock: item.stock,
-        unit: 'Pza',
-        description: item.descripcion || '',
-        imageUrl: item.image_url || null,
-        family: 'General',
-        subfamily: 'Varios',
-      }));
-    }
-
-    return (data || []).map(item => {
-      const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
-      const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
-
-      return {
-        id: item.id,
-        name: item.nombre,
-        price: item.precio,
-        stock: item.stock,
-        unit: 'Pza',
-        description: item.descripcion || '',
-        imageUrl: item.image_url || null,
-        family: fam?.nombre || 'General',
-        subfamily: subfam?.nombre || 'Varios',
-      };
-    });
+    if (error) throw error;
+    
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.nombre,
+      price: item.precio,
+      stock: item.stock,
+      unit: item.unit || 'Pza',
+      description: item.descripcion || '',
+      imageUrl: item.image_url || null,
+      family: item.marca || 'General',
+      subfamily: item.categoria || 'Varios',
+    }));
   } catch (error: any) {
     console.error("Error crítico en getPublicMaterials:", error?.message || "Error desconocido");
     return [];
@@ -99,47 +60,24 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   try {
     const { data, error } = await supabase
       .from('materiales')
-      .select(`
-        id, 
-        nombre, 
-        precio, 
-        stock, 
-        descripcion, 
-        image_url, 
-        cost, 
-        created_at,
-        subfamilias (
-          nombre,
-          familias (
-            nombre
-          )
-        )
-      `)
+      .select('id, nombre, precio, stock, descripcion, image_url, unit, cost, created_at, categoria, marca')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error("Error de Supabase al obtener materiales (Admin):", error.message);
-      return [];
-    }
+    if (error) throw error;
 
-    return (data || []).map(item => {
-      const subfam = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
-      const fam = subfam ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
-
-      return {
-        id: item.id,
-        name: item.nombre,
-        price: item.precio,
-        stock: item.stock,
-        unit: 'Pza',
-        description: item.descripcion || '',
-        imageUrl: item.image_url || null,
-        family: fam?.nombre || 'General',
-        subfamily: subfam?.nombre || 'Varios',
-        cost: item.cost || 0,
-        createdAt: item.created_at,
-      };
-    });
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.nombre,
+      price: item.precio,
+      stock: item.stock,
+      unit: item.unit || 'Pza',
+      description: item.descripcion || '',
+      imageUrl: item.image_url || null,
+      family: item.marca || 'General',
+      subfamily: item.categoria || 'Varios',
+      cost: item.cost || 0,
+      createdAt: item.created_at,
+    }));
   } catch (error: any) {
     console.error("Error crítico en getAdminMaterials:", error?.message || "Error desconocido");
     return [];
@@ -147,10 +85,11 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
 }
 
 /**
- * Actualiza el stock de un material en Supabase restando la cantidad solicitada.
+ * Actualiza el stock de un material restando la cantidad.
  */
 export async function updateMaterialStock(materialId: number, quantityToSubtract: number) {
   try {
+    // Obtenemos el stock actual primero para asegurar una resta precisa
     const { data: material, error: fetchError } = await supabase
       .from('materiales')
       .select('stock')
