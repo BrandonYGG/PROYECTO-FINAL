@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getPublicMaterials, type Material } from '@/lib/materials';
 import { HierarchicalMaterialsViewer } from '@/components/materials/hierarchical-materials-viewer';
+import { cn } from '@/lib/utils';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
 
