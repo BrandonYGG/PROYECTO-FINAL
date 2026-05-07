@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 
 export interface PublicMaterial {
-  id: number;
+  id: string;
   name: string;
   price: number;
   stock: number;
@@ -25,28 +25,71 @@ export interface ProductCatalogItem {
 export type Material = PublicMaterial;
 
 /**
- * Obtiene los materiales usando los nombres de columna confirmados por el usuario.
+ * Obtiene los materiales usando las relaciones reales con las tablas familias y subfamilias.
+ * Se asume una estructura: materiales -> subfamilias -> familias
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
   try {
+    // Intentamos la consulta con la relación configurada en la DB
     const { data, error } = await supabase
       .from('materiales')
-      .select('id, nombre, precio, stock, descripcion, image_url, unit, categoria, marca')
+      .select(`
+        id, 
+        nombre, 
+        precio, 
+        stock, 
+        descripcion, 
+        image_url, 
+        unit,
+        subfamilias (
+          nombre,
+          familias (
+            nombre
+          )
+        )
+      `)
       .order('nombre', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.warn("Error con relaciones anidadas, intentando fallback a columnas planas:", error.message);
+      
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('materiales')
+        .select('id, nombre, precio, stock, descripcion, image_url, unit, categoria')
+        .order('nombre', { ascending: true });
+      
+      if (fallbackError) throw fallbackError;
+      
+      return (fallbackData || []).map(item => ({
+        id: item.id.toString(),
+        name: item.nombre,
+        price: item.precio || 0,
+        stock: item.stock || 0,
+        unit: item.unit || 'Pza',
+        description: item.descripcion || '',
+        imageUrl: item.image_url || null,
+        family: 'General',
+        subfamily: item.categoria || 'Varios',
+      }));
+    }
     
-    return (data || []).map(item => ({
-      id: item.id,
-      name: item.nombre,
-      price: item.precio,
-      stock: item.stock,
-      unit: item.unit || 'Pza',
-      description: item.descripcion || '',
-      imageUrl: item.image_url || null,
-      family: item.marca || 'General',
-      subfamily: item.categoria || 'Varios',
-    }));
+    return (data || []).map(item => {
+      // Manejo de la data anidada de Supabase considerando que pueden venir como objetos o arrays
+      const subfam: any = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
+      const fam: any = subfam?.familias ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
+
+      return {
+        id: item.id.toString(),
+        name: item.nombre,
+        price: item.precio || 0,
+        stock: item.stock || 0,
+        unit: item.unit || 'Pza',
+        description: item.descripcion || '',
+        imageUrl: item.image_url || null,
+        family: fam?.nombre || 'General',
+        subfamily: subfam?.nombre || 'Varios',
+      };
+    });
   } catch (error: any) {
     console.error("Error crítico en getPublicMaterials:", error?.message || "Error desconocido");
     return [];
@@ -54,30 +97,51 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
 }
 
 /**
- * Obtiene los materiales para la vista de administrador.
+ * Obtiene los materiales para la vista de administrador incluyendo costos.
  */
 export async function getAdminMaterials(): Promise<AdminMaterial[]> {
   try {
     const { data, error } = await supabase
       .from('materiales')
-      .select('id, nombre, precio, stock, descripcion, image_url, unit, cost, created_at, categoria, marca')
+      .select(`
+        id, 
+        nombre, 
+        precio, 
+        stock, 
+        descripcion, 
+        image_url, 
+        unit, 
+        cost, 
+        created_at,
+        subfamilias (
+          nombre,
+          familias (
+            nombre
+          )
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return (data || []).map(item => ({
-      id: item.id,
-      name: item.nombre,
-      price: item.precio,
-      stock: item.stock,
-      unit: item.unit || 'Pza',
-      description: item.descripcion || '',
-      imageUrl: item.image_url || null,
-      family: item.marca || 'General',
-      subfamily: item.categoria || 'Varios',
-      cost: item.cost || 0,
-      createdAt: item.created_at,
-    }));
+    return (data || []).map(item => {
+      const subfam: any = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
+      const fam: any = subfam?.familias ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
+
+      return {
+        id: item.id.toString(),
+        name: item.nombre,
+        price: item.precio || 0,
+        stock: item.stock || 0,
+        unit: item.unit || 'Pza',
+        description: item.descripcion || '',
+        imageUrl: item.image_url || null,
+        family: fam?.nombre || 'General',
+        subfamily: subfam?.nombre || 'Varios',
+        cost: item.cost || 0,
+        createdAt: item.created_at,
+      };
+    });
   } catch (error: any) {
     console.error("Error crítico en getAdminMaterials:", error?.message || "Error desconocido");
     return [];
@@ -87,9 +151,8 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
 /**
  * Actualiza el stock de un material restando la cantidad.
  */
-export async function updateMaterialStock(materialId: number, quantityToSubtract: number) {
+export async function updateMaterialStock(materialId: string | number, quantityToSubtract: number) {
   try {
-    // Obtenemos el stock actual primero para asegurar una resta precisa
     const { data: material, error: fetchError } = await supabase
       .from('materiales')
       .select('stock')
@@ -98,7 +161,7 @@ export async function updateMaterialStock(materialId: number, quantityToSubtract
 
     if (fetchError || !material) throw new Error(`Material ID ${materialId} no encontrado`);
 
-    const newStock = material.stock - quantityToSubtract;
+    const newStock = (material.stock || 0) - quantityToSubtract;
     
     const { error: updateError } = await supabase
       .from('materiales')
@@ -119,13 +182,12 @@ export async function getMaterials(): Promise<PublicMaterial[]> {
 }
 
 /**
- * Agrupa los materiales por su nombre base (sin variantes) para el catálogo.
+ * Agrupa los materiales por su nombre base para el catálogo.
  */
 export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   const materials = await getPublicMaterials();
 
   const catalog = materials.reduce((acc, material) => {
-    // Limpia el nombre para agrupar variantes (ej: "Varilla (3/8)" -> "Varilla")
     const productName = material.name.split(' (')[0].split('  ')[0].trim();
     const existing = acc.find(p => p.productName === productName);
 
@@ -145,23 +207,4 @@ export async function getProductCatalog(): Promise<ProductCatalogItem[]> {
   });
 
   return catalog;
-}
-
-/**
- * Obtiene solo algunos productos destacados, uno por cada familia principal.
- */
-export async function getHomePageFeaturedProducts(): Promise<ProductCatalogItem[]> {
-  const catalog = await getProductCatalog();
-  const featuredByFamily: Record<string, ProductCatalogItem> = {};
-  
-  catalog.forEach(item => {
-    const family = item.variants[0]?.family || 'Varios';
-    // Si la familia aún no tiene un representante, lo asignamos
-    if (!featuredByFamily[family]) {
-      featuredByFamily[family] = item;
-    }
-  });
-
-  // Convertimos a array y limitamos a 8 para que la página cargue rápido y se vea bien
-  return Object.values(featuredByFamily).slice(0, 8);
 }

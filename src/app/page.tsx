@@ -252,7 +252,7 @@ export default async function Home() {
             </p>
           </div>
           
-          <HierarchicalMaterialsViewer materials={allMaterials} />
+          <HierarchicalMaterialsViewer materials={allMaterials || []} />
 
           <div className="mt-16 text-center">
             <Button asChild size="lg" variant="outline" className="font-bold">
