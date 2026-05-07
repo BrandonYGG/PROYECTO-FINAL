@@ -1,10 +1,13 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react';
+import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getPublicMaterials } from '@/lib/materials';
+import { getPublicMaterials, type Material } from '@/lib/materials';
 import { HierarchicalMaterialsViewer } from '@/components/materials/hierarchical-materials-viewer';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -89,208 +92,248 @@ const galleryImages = [
   },
 ];
 
-export default async function Home() {
-  const allMaterials = await getPublicMaterials();
+export default function Home() {
+  const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBrowsing, setIsBrowsing] = useState(false);
+
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      try {
+        const materials = await getPublicMaterials();
+        setAllMaterials(materials);
+      } catch (error) {
+        console.error("Error fetching materials:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchMaterials();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col animate-fade-in">
-      <section className="relative h-[70vh] md:h-[80vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
-        {heroImage && (
-          <Image
-            src={heroImage.imageUrl}
-            alt={heroImage.description}
-            fill
-            className="object-cover scale-105"
-            priority
-            data-ai-hint={heroImage.imageHint}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-transparent" />
-        <div className="relative z-10 max-w-4xl mx-auto px-4 animate-slide-in-up animation-delay-300">
-          <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight text-shadow-lg">
-            Construye con nosotros, ¡nunca dejes de construir con nuestros materiales!
-          </h1>
-          <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto text-primary-foreground/90">
-            Tu aliado en materiales de construcción de alta calidad. Desde los cimientos hasta los acabados, tenemos todo para tu proyecto.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-            <Button asChild size="lg" className="font-bold text-lg px-10 py-6">
-              <Link href="/signup">Empezar a Construir</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="font-bold text-lg bg-black/20 border-white/50 backdrop-blur-sm hover:bg-white/10">
-              <Link href="/login">Iniciar Sesión</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+      {/* Solo mostrar Hero y otras secciones si NO estamos navegando activamente en el catálogo */}
+      {!isBrowsing && (
+        <>
+          <section className="relative h-[70vh] md:h-[80vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
+            {heroImage && (
+              <Image
+                src={heroImage.imageUrl}
+                alt={heroImage.description}
+                fill
+                className="object-cover scale-105"
+                priority
+                data-ai-hint={heroImage.imageHint}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-transparent" />
+            <div className="relative z-10 max-w-4xl mx-auto px-4 animate-slide-in-up animation-delay-300">
+              <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight text-shadow-lg">
+                Construye con nosotros, ¡nunca dejes de construir con nuestros materiales!
+              </h1>
+              <p className="mt-6 text-lg md:text-xl max-w-3xl mx-auto text-primary-foreground/90">
+                Tu aliado en materiales de construcción de alta calidad. Desde los cimientos hasta los acabados, tenemos todo para tu proyecto.
+              </p>
+              <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
+                <Button asChild size="lg" className="font-bold text-lg px-10 py-6">
+                  <Link href="/signup">Empezar a Construir</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="font-bold text-lg bg-black/20 border-white/50 backdrop-blur-sm hover:bg-white/10">
+                  <Link href="/login">Iniciar Sesión</Link>
+                </Button>
+              </div>
+            </div>
+          </section>
 
-      <section id="materials-video" className="py-20 md:py-28 bg-background">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl md:text-5xl font-headline font-bold">
-            Nuestros Materiales en Acción
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            Dale un vistazo a la calidad y versatilidad de los materiales que ofrecemos. La base perfecta para construir tus proyectos más ambiciosos.
-          </p>
-          <div className="mt-12 max-w-sm mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
-            <video
-              src="/materials-showcase.mp4"
-              width="1920"
-              height="1080"
-              controls
-              playsInline
-              className="w-full h-auto"
-            >
-              Tu navegador no soporta el tag de video.
-            </video>
-          </div>
-        </div>
-      </section>
+          <section id="materials-video" className="py-20 md:py-28 bg-background">
+            <div className="container mx-auto px-4 text-center">
+              <h2 className="text-4xl md:text-5xl font-headline font-bold">
+                Nuestros Materiales en Acción
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
+                Dale un vistazo a la calidad y versatilidad de los materiales que ofrecemos. La base perfecta para construir tus proyectos más ambiciosos.
+              </p>
+              <div className="mt-12 max-w-sm mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+                <video
+                  src="/materials-showcase.mp4"
+                  width="1920"
+                  height="1080"
+                  controls
+                  playsInline
+                  className="w-full h-auto"
+                >
+                  Tu navegador no soporta el tag de video.
+                </video>
+              </div>
+            </div>
+          </section>
 
-      <section id="block-video" className="py-20 md:py-28 bg-secondary/10">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl md:text-5xl font-headline font-bold">
-            Así Nace la Calidad: La Fabricación de Nuestros Blocks
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad
-          </p>
-          <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
-            <video
-              src="/block-manufacturing.mp4"
-              width="1920"
-              height="1080"
-              controls
-              playsInline
-              className="w-full h-auto"
-            >
-              Tu navegador no soporta el tag de video.
-            </video>
-          </div>
-        </div>
-      </section>
+          <section id="block-video" className="py-20 md:py-28 bg-secondary/10">
+            <div className="container mx-auto px-4 text-center">
+              <h2 className="text-4xl md:text-5xl font-headline font-bold">
+                Así Nace la Calidad: La Fabricación de Nuestros Blocks
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
+                La solución perfecta para cualquier conexión, con variedad de medidas, una sola garantía de calidad
+              </p>
+              <div className="mt-12 max-w-md mx-auto shadow-2xl rounded-lg overflow-hidden border-4 border-card bg-muted">
+                <video
+                  src="/block-manufacturing.mp4"
+                  width="1920"
+                  height="1080"
+                  controls
+                  playsInline
+                  className="w-full h-auto"
+                >
+                  Tu navegador no soporta el tag de video.
+                </video>
+              </div>
+            </div>
+          </section>
 
-      <section id="why-us" className="py-20 md:py-28 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-headline font-bold">
-              ¿Por Qué Elegirnos?
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              No solo vendemos materiales, construimos relaciones de confianza.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {whyChooseUs.map((reason, index) => (
-              <Card
-                key={reason.title}
-                className="text-center p-6 flex flex-col items-center border-2 border-transparent hover:border-primary hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in"
-                style={{ animationDelay: `${200 * (index + 2)}ms` }}
-              >
-                <div className="bg-primary/10 p-4 rounded-full mb-4">
-                  {reason.icon}
-                </div>
-                <CardHeader className="p-0">
-                  <CardTitle className="text-2xl font-bold font-headline">{reason.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 mt-2 flex-grow">
-                  <p className="text-muted-foreground">
-                    {reason.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+          <section id="why-us" className="py-20 md:py-28 bg-background">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-headline font-bold">
+                  ¿Por Qué Elegirnos?
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+                  No solo vendemos materiales, construimos relaciones de confianza.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {whyChooseUs.map((reason, index) => (
+                  <Card
+                    key={reason.title}
+                    className="text-center p-6 flex flex-col items-center border-2 border-transparent hover:border-primary hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in"
+                    style={{ animationDelay: `${200 * (index + 2)}ms` }}
+                  >
+                    <div className="bg-primary/10 p-4 rounded-full mb-4">
+                      {reason.icon}
+                    </div>
+                    <CardHeader className="p-0">
+                      <CardTitle className="text-2xl font-bold font-headline">{reason.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 mt-2 flex-grow">
+                      <p className="text-muted-foreground">
+                        {reason.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </section>
 
-      <section id="gallery" className="py-20 md:py-28 bg-secondary/10">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-headline font-bold">
-              Productos estrella
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Calidad que se ve y se siente. Un vistazo a cómo nuestros productos transforman proyectos en realidades duraderas.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {galleryImages.map((image, index) => (
-              <Card 
-                key={index} 
-                className="overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
-                style={{ animationDelay: `${150 * (index + 1)}ms` }}
-              >
-                <CardHeader className="p-0">
-                   <div className="relative overflow-hidden w-full h-56">
-                    <Image
-                      src={image.src}
-                      alt={image.alt}
-                      fill
-                      className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <CardTitle className="text-xl font-headline">{image.title}</CardTitle>
-                  <CardDescription className="mt-2 text-sm">{image.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+          <section id="gallery" className="py-20 md:py-28 bg-secondary/10">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-headline font-bold">
+                  Productos estrella
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Calidad que se ve y se siente. Un vistazo a cómo nuestros productos transforman proyectos en realidades duraderas.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {galleryImages.map((image, index) => (
+                  <Card 
+                    key={index} 
+                    className="overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
+                    style={{ animationDelay: `${150 * (index + 1)}ms` }}
+                  >
+                    <CardHeader className="p-0">
+                       <div className="relative overflow-hidden w-full h-56">
+                        <Image
+                          src={image.src}
+                          alt={image.alt}
+                          fill
+                          className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                        />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <CardTitle className="text-xl font-headline">{image.title}</CardTitle>
+                      <CardDescription className="mt-2 text-sm">{image.description}</CardDescription>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
-      <section id="featured-materials" className="py-20 md:py-28 bg-background">
+      {/* Sección del Catálogo (Navegador Jerárquico) */}
+      <section id="featured-materials" className={cn("py-20 md:py-28 bg-background", isBrowsing && "pt-10")}>
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
               Explora Nuestro Catálogo
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Navega por familias y categorías para encontrar exactamente lo que necesitas para tu obra.
+              {isBrowsing 
+                ? "Explora las categorías y encuentra lo que necesitas para tu obra." 
+                : "Navega por familias y categorías para encontrar exactamente lo que necesitas para tu obra."}
             </p>
           </div>
           
-          <HierarchicalMaterialsViewer materials={allMaterials || []} />
+          <HierarchicalMaterialsViewer 
+            materials={allMaterials || []} 
+            onActiveChange={setIsBrowsing}
+          />
 
-          <div className="mt-16 text-center">
-            <Button asChild size="lg" variant="outline" className="font-bold">
-              <Link href="/products">Ver Catálogo Completo</Link>
-            </Button>
-          </div>
+          {!isBrowsing && (
+            <div className="mt-16 text-center">
+              <Button asChild size="lg" variant="outline" className="font-bold">
+                <Link href="/products">Ver Catálogo Completo</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
-      <section id="featured-qualities" className="py-20 md:py-28 bg-secondary/50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-headline font-bold">
-              Calidad que Construye Confianza
-            </h2>
-             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Nuestros productos están diseñados para resistir el paso del tiempo.
-            </p>
+      {/* Solo mostrar cualidades finales si NO estamos explorando activamente */}
+      {!isBrowsing && (
+        <section id="featured-qualities" className="py-20 md:py-28 bg-secondary/50">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-headline font-bold">
+                Calidad que Construye Confianza
+              </h2>
+               <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+                Nuestros productos están diseñados para resistir el paso del tiempo.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {featuredQualities.map((quality, index) => (
+                <Card 
+                  key={quality.name}
+                  className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
+                  style={{ animationDelay: `${200 * (index + 2)}ms` }}
+                >
+                  <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
+                    {quality.icon}
+                    <CardTitle className="text-lg">{quality.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow pt-2">
+                    <CardDescription>{quality.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredQualities.map((quality, index) => (
-              <Card 
-                key={quality.name}
-                className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
-                style={{ animationDelay: `${200 * (index + 2)}ms` }}
-              >
-                <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
-                  {quality.icon}
-                  <CardTitle className="text-lg">{quality.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow pt-2">
-                  <CardDescription>{quality.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

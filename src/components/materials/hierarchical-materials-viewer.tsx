@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,14 +12,22 @@ import { cn } from '@/lib/utils';
 
 interface HierarchicalMaterialsViewerProps {
   materials: Material[];
+  onActiveChange?: (isActive: boolean) => void;
 }
 
 type ViewState = 'families' | 'subfamilies' | 'materials';
 
-export function HierarchicalMaterialsViewer({ materials }: HierarchicalMaterialsViewerProps) {
+export function HierarchicalMaterialsViewer({ materials, onActiveChange }: HierarchicalMaterialsViewerProps) {
   const [view, setView] = useState<ViewState>('families');
   const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
   const [selectedSubfamily, setSelectedSubfamily] = useState<string | null>(null);
+
+  // Notificar al padre si estamos en modo "exploración activa"
+  useEffect(() => {
+    if (onActiveChange) {
+      onActiveChange(view !== 'families');
+    }
+  }, [view, onActiveChange]);
 
   // Agrupamiento de datos
   const hierarchy = useMemo(() => {
@@ -41,11 +49,13 @@ export function HierarchicalMaterialsViewer({ materials }: HierarchicalMaterials
   const handleFamilyClick = (family: string) => {
     setSelectedFamily(family);
     setView('subfamilies');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSubfamilyClick = (subfamily: string) => {
     setSelectedSubfamily(subfamily);
     setView('materials');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goBack = () => {
@@ -59,7 +69,7 @@ export function HierarchicalMaterialsViewer({ materials }: HierarchicalMaterials
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-[60vh]">
       {/* Breadcrumbs / Navigation Control */}
       <div className="flex items-center gap-4 mb-6">
         {view !== 'families' && (
@@ -68,22 +78,28 @@ export function HierarchicalMaterialsViewer({ materials }: HierarchicalMaterials
             Volver
           </Button>
         )}
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <span className={cn(view === 'families' ? "text-primary font-bold" : "cursor-pointer hover:underline")} onClick={() => { setView('families'); setSelectedFamily(null); setSelectedSubfamily(null); }}>
-            Familias
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground overflow-x-auto pb-2 sm:pb-0">
+          <span 
+            className={cn(view === 'families' ? "text-primary font-bold" : "cursor-pointer hover:underline whitespace-nowrap")} 
+            onClick={() => { setView('families'); setSelectedFamily(null); setSelectedSubfamily(null); }}
+          >
+            Todas las Familias
           </span>
           {selectedFamily && (
             <>
-              <ChevronRight className="h-4 w-4" />
-              <span className={cn(view === 'subfamilies' ? "text-primary font-bold" : "cursor-pointer hover:underline")} onClick={() => { setView('subfamilies'); setSelectedSubfamily(null); }}>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+              <span 
+                className={cn(view === 'subfamilies' ? "text-primary font-bold" : "cursor-pointer hover:underline whitespace-nowrap")} 
+                onClick={() => { setView('subfamilies'); setSelectedSubfamily(null); }}
+              >
                 {selectedFamily}
               </span>
             </>
           )}
           {selectedSubfamily && (
             <>
-              <ChevronRight className="h-4 w-4" />
-              <span className="text-primary font-bold">{selectedSubfamily}</span>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+              <span className="text-primary font-bold whitespace-nowrap">{selectedSubfamily}</span>
             </>
           )}
         </div>
