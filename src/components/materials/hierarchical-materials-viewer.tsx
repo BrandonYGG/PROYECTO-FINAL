@@ -9,6 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { type Material } from '@/lib/materials';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/firebase';
 
 interface HierarchicalMaterialsViewerProps {
   materials: Material[];
@@ -18,9 +19,13 @@ interface HierarchicalMaterialsViewerProps {
 type ViewState = 'families' | 'subfamilies' | 'materials';
 
 export function HierarchicalMaterialsViewer({ materials, onActiveChange }: HierarchicalMaterialsViewerProps) {
+  const { user } = useUser();
   const [view, setView] = useState<ViewState>('families');
   const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
   const [selectedSubfamily, setSelectedSubfamily] = useState<string | null>(null);
+
+  // Link dinámico basado en la autenticación
+  const orderLink = user ? '/new-order' : '/login';
 
   // Notificar al padre si estamos en modo "exploración activa"
   useEffect(() => {
@@ -169,7 +174,7 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
                <div className="flex items-center justify-between mt-2">
                   <span className="text-lg font-bold text-primary">${material.price.toFixed(2)}</span>
                   <Button asChild size="sm" className="gap-2">
-                    <Link href="/new-order">
+                    <Link href={orderLink}>
                       <ShoppingCart className="h-4 w-4" />
                       Pedir
                     </Link>
