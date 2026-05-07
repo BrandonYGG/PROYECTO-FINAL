@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ArrowLeft, Package, Boxes, ShoppingCart } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Package, Boxes, ShoppingCart, Grid } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type Material } from '@/lib/materials';
@@ -18,16 +18,20 @@ interface HierarchicalMaterialsViewerProps {
 
 type ViewState = 'families' | 'subfamilies' | 'materials';
 
+const INITIAL_FAMILIES_LIMIT = 8;
+
 export function HierarchicalMaterialsViewer({ materials, onActiveChange }: HierarchicalMaterialsViewerProps) {
   const { user } = useUser();
   const [view, setView] = useState<ViewState>('families');
   const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
   const [selectedSubfamily, setSelectedSubfamily] = useState<string | null>(null);
+  const [showAllFamilies, setShowAllFamilies] = useState(false);
 
   // Link dinámico basado en la autenticación
   const orderLink = user ? '/new-order' : '/login';
 
   // Notificar al padre si estamos en modo "exploración activa"
+  // Entendemos por exploración activa cuando hemos entrado en una familia o subfamilia
   useEffect(() => {
     if (onActiveChange) {
       onActiveChange(view !== 'families');
@@ -48,6 +52,8 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
   }, [materials]);
 
   const families = Object.keys(hierarchy).sort();
+  const displayedFamilies = showAllFamilies ? families : families.slice(0, INITIAL_FAMILIES_LIMIT);
+  
   const subfamilies = selectedFamily ? Object.keys(hierarchy[selectedFamily]).sort() : [];
   const currentMaterials = (selectedFamily && selectedSubfamily) ? hierarchy[selectedFamily][selectedSubfamily] : [];
 
@@ -76,14 +82,14 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
   return (
     <div className="space-y-8 min-h-[60vh]">
       {/* Breadcrumbs / Navigation Control */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-6 overflow-hidden">
         {view !== 'families' && (
-          <Button variant="outline" size="sm" onClick={goBack} className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={goBack} className="flex items-center gap-2 shrink-0">
             <ArrowLeft className="h-4 w-4" />
             Volver
           </Button>
         )}
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground overflow-x-auto pb-2 sm:pb-0">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
           <span 
             className={cn(view === 'families' ? "text-primary font-bold" : "cursor-pointer hover:underline whitespace-nowrap")} 
             onClick={() => { setView('families'); setSelectedFamily(null); setSelectedSubfamily(null); }}
@@ -112,7 +118,7 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
 
       {/* Grid Display */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
-        {view === 'families' && families.map((family) => (
+        {view === 'families' && displayedFamilies.map((family) => (
           <Card 
             key={family} 
             className="cursor-pointer hover:border-primary hover:shadow-xl transition-all group overflow-hidden"
@@ -184,6 +190,21 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
           </Card>
         ))}
       </div>
+
+      {/* Botón de "Ver todas" si estamos en la vista de familias y hay más para mostrar */}
+      {view === 'families' && !showAllFamilies && families.length > INITIAL_FAMILIES_LIMIT && (
+        <div className="flex justify-center mt-12">
+            <Button 
+                variant="outline" 
+                size="lg" 
+                onClick={() => setShowAllFamilies(true)}
+                className="gap-2 font-bold px-8"
+            >
+                <Grid className="h-5 w-5" />
+                Ver todas las Familias ({families.length})
+            </Button>
+        </div>
+      )}
 
       {view === 'materials' && currentMaterials.length === 0 && (
         <div className="text-center py-12">

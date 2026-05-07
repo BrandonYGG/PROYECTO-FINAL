@@ -26,11 +26,16 @@ export type Material = PublicMaterial;
 
 /**
  * Obtiene los materiales usando las relaciones reales con las tablas familias y subfamilias.
- * Se asume una estructura: materiales -> subfamilias -> familias
+ * Sincronizado con los nombres de columna reales: id, nombre, precio, stock, descripcion, image_url, unit, categoria.
  */
 export async function getPublicMaterials(): Promise<PublicMaterial[]> {
+  // Verificación de variables de entorno para evitar errores de fetch críticos
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error("Faltan las credenciales de Supabase en las variables de entorno.");
+    return [];
+  }
+
   try {
-    // Intentamos la consulta con la relación configurada en la DB
     const { data, error } = await supabase
       .from('materiales')
       .select(`
@@ -51,7 +56,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       .order('nombre', { ascending: true });
 
     if (error) {
-      console.warn("Error con relaciones anidadas, intentando fallback a columnas planas:", error.message);
+      console.warn("Consulta relacional fallida, intentando fallback:", error.message);
       
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('materiales')
@@ -74,7 +79,6 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
     }
     
     return (data || []).map(item => {
-      // Manejo de la data anidada de Supabase considerando que pueden venir como objetos o arrays
       const subfam: any = Array.isArray(item.subfamilias) ? item.subfamilias[0] : item.subfamilias;
       const fam: any = subfam?.familias ? (Array.isArray(subfam.familias) ? subfam.familias[0] : subfam.familias) : null;
 
@@ -91,7 +95,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error crítico en getPublicMaterials:", error?.message || "Error desconocido");
+    console.error("Error crítico en getPublicMaterials:", error?.message || "Error de conexión");
     return [];
   }
 }
@@ -143,7 +147,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
       };
     });
   } catch (error: any) {
-    console.error("Error crítico en getAdminMaterials:", error?.message || "Error desconocido");
+    console.error("Error crítico en getAdminMaterials:", error?.message || "Error de conexión");
     return [];
   }
 }
