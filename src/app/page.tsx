@@ -4,8 +4,8 @@ import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star } from 'lucide-react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getHomePageFeaturedProducts } from '@/lib/materials';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { getPublicMaterials } from '@/lib/materials';
+import { HierarchicalMaterialsViewer } from '@/components/materials/hierarchical-materials-viewer';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
 
@@ -90,7 +90,7 @@ const galleryImages = [
 ];
 
 export default async function Home() {
-  const featuredProducts = await getHomePageFeaturedProducts();
+  const allMaterials = await getPublicMaterials();
 
   return (
     <div className="flex flex-col animate-fade-in">
@@ -245,85 +245,17 @@ export default async function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-headline font-bold">
-              Nuestros Materiales Populares
+              Explora Nuestro Catálogo
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Explora nuestra selección por familias. La base de todo gran proyecto.
+              Navega por familias y categorías para encontrar exactamente lo que necesitas para tu obra.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducts.map((product, index) => {
-              const dbImageUrl = product.variants.find(v => v.imageUrl)?.imageUrl;
-              const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
-              
-              return (
-                <Card 
-                  key={product.productName} 
-                  className="overflow-hidden flex flex-col transform hover:scale-105 transition-transform duration-300 shadow-xl bg-card animate-fade-in"
-                  style={{ animationDelay: `${100 * (index + 1)}ms` }}
-                >
-                  <CardHeader className="p-0 relative">
-                    {dbImageUrl ? (
-                      <div className="relative w-full h-48">
-                        <Image
-                          src={dbImageUrl}
-                          alt={product.productName}
-                          fill
-                          className="object-cover bg-muted"
-                          unoptimized
-                        />
-                      </div>
-                    ) : productImages.length > 0 ? (
-                      <Carousel className="w-full">
-                        <CarouselContent>
-                          {productImages.map((image, i) => (
-                            <CarouselItem key={i}>
-                              <div className="relative w-full h-48">
-                                <Image
-                                  src={image.imageUrl}
-                                  alt={product.productName}
-                                  fill
-                                  className="object-cover bg-muted"
-                                  data-ai-hint={image.imageHint}
-                                />
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        {productImages.length > 1 && (
-                          <>
-                            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 text-white border-none hover:bg-black/50" />
-                            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/30 text-white border-none hover:bg-black/50" />
-                          </>
-                        )}
-                      </Carousel>
-                    ) : (
-                      <div className="relative w-full h-48 bg-muted flex items-center justify-center">
-                         <Image
-                            src={'/images/placeholder.png'}
-                            alt={product.productName}
-                            width={400}
-                            height={300}
-                            className="object-cover w-full h-48"
-                          />
-                      </div>
-                    )}
-                  </CardHeader>
-                  <CardContent className="p-6 flex-grow">
-                    <div className="mb-2">
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                            {product.variants[0]?.family}
-                        </span>
-                    </div>
-                    <CardTitle className="text-xl capitalize font-headline">{product.productName}</CardTitle>
-                    <CardDescription className="mt-2 text-sm line-clamp-2">{product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`}</CardDescription>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          
+          <HierarchicalMaterialsViewer materials={allMaterials} />
+
           <div className="mt-16 text-center">
-            <Button asChild size="lg" className="font-bold">
+            <Button asChild size="lg" variant="outline" className="font-bold">
               <Link href="/products">Ver Catálogo Completo</Link>
             </Button>
           </div>
