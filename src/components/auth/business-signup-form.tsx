@@ -111,7 +111,7 @@ export function BusinessSignupForm() {
 
       toast({
         title: '¡Cuenta de Empresa Creada!',
-        description: 'Tu cuenta ha sido creada exitosamente. Redirigiendo...',
+        description: 'Tu cuenta ha sido creada exitosamente. Te estamos redirigiendo...',
       });
       
       router.push('/profile');

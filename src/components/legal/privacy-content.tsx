@@ -50,11 +50,11 @@ export function PrivacyContent() {
 
                 <h2 className="text-2xl font-semibold mt-6 mb-4">7. Cambios a esta Política de Privacidad</h2>
                 <p>
-                    Podemos actualizar nuestra Política de Privacidad de vez en cuando. Te notificaremos cualquier cambio publicando la nueva Política de Privacidad en esta página.
+                    Nuestra Política de Privacidad puede recibir actualizaciones casuales. Te notificaremos cualquier cambio publicando la nueva Política de Privacidad en esta página.
                 </p>
 
                 <p className="mt-8">
-                    <em>Última actualización: Marzo 2026</em>
+                    <em>Última actualización: Mayo 2026</em>
                 </p>
             </div>
         </>

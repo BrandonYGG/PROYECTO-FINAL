@@ -1,14 +1,46 @@
+'use client';
+
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { getProductCatalog, Material } from '@/lib/materials';
+import { getProductCatalog, type ProductCatalogItem, type Material } from '@/lib/materials';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useUser } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { Loader2, ShoppingCart } from 'lucide-react';
 
-export default async function ProductsPage() {
-  const productCatalog = await getProductCatalog();
+export default function ProductsPage() {
+  const { user, isUserLoading } = useUser();
+  const [productCatalog, setProductCatalog] = useState<ProductCatalogItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const data = await getProductCatalog();
+        setProductCatalog(data);
+      } catch (error) {
+        console.error("Error al cargar el catálogo:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  // Determinar el destino del botón según si el usuario inició sesión o no
+  const orderLink = user ? '/new-order' : '/login';
+
+  if (isLoading || isUserLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-14rem)]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-12 px-4 animate-fade-in">
@@ -20,7 +52,6 @@ export default async function ProductsPage() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {productCatalog.map((product, index) => {
-          // Buscamos si alguna variante tiene imagen de la base de datos
           const dbImageUrl = product.variants.find(v => v.imageUrl)?.imageUrl;
           const productImages = PlaceHolderImages.filter(img => img.id === product.productName.toLowerCase().replace(/ /g, '-'));
           const description = product.variants[0]?.description || productImages[0]?.description || `Material de construcción: ${product.productName}`;
@@ -39,7 +70,7 @@ export default async function ProductsPage() {
                       alt={product.productName}
                       fill
                       className="object-cover bg-muted"
-                      unoptimized // Importante para URLs externas de Supabase
+                      unoptimized
                     />
                   </div>
                 ) : productImages.length > 0 ? (
@@ -95,8 +126,11 @@ export default async function ProductsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                 <Button asChild className="w-full">
-                    <Link href="/new-order">Hacer Pedido de Entrega</Link>
+                 <Button asChild className="w-full gap-2">
+                    <Link href={orderLink}>
+                        <ShoppingCart className="h-4 w-4" />
+                        Pedir
+                    </Link>
                 </Button>
               </CardFooter>
             </Card>

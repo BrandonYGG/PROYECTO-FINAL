@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star, Loader2 } from 'lucide-react';
+import { ShieldCheck, Users, Truck, Gem, Zap, Shield, Star, Loader2, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { getPublicMaterials, type Material } from '@/lib/materials';
 import { HierarchicalMaterialsViewer } from '@/components/materials/hierarchical-materials-viewer';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/firebase';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
 
@@ -21,7 +22,7 @@ const whyChooseUs = [
   },
   {
     icon: <Users className="h-10 w-10 text-primary" />,
-    title: 'Asesoramiento Experto',
+    title: 'Asesoramiento Expertos',
     description: 'Nuestro equipo está siempre disponible para guiarte en la selección de los mejores materiales para tus necesidades.',
   },
   {
@@ -94,6 +95,7 @@ const galleryImages = [
 ];
 
 export default function Home() {
+  const { user } = useUser();
   const [allMaterials, setAllMaterials] = useState<Material[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBrowsing, setIsBrowsing] = useState(false);
@@ -112,6 +114,8 @@ export default function Home() {
     fetchMaterials();
   }, []);
 
+  const orderLink = user ? '/new-order' : '/login';
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
@@ -122,7 +126,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col animate-fade-in">
-      {/* Solo mostrar Hero y otras secciones si NO estamos navegando activamente en el catálogo */}
       {!isBrowsing && (
         <>
           <section className="relative h-[70vh] md:h-[80vh] w-full flex items-center justify-center text-center text-white overflow-hidden">
@@ -266,6 +269,14 @@ export default function Home() {
                       <CardTitle className="text-xl font-headline">{image.title}</CardTitle>
                       <CardDescription className="mt-2 text-sm">{image.description}</CardDescription>
                     </CardContent>
+                    <CardFooter>
+                      <Button asChild className="w-full gap-2">
+                        <Link href={orderLink}>
+                          <ShoppingCart className="h-4 w-4" />
+                          Pedir
+                        </Link>
+                      </Button>
+                    </CardFooter>
                   </Card>
                 ))}
               </div>
@@ -274,7 +285,6 @@ export default function Home() {
         </>
       )}
 
-      {/* Sección del Catálogo (Navegador Jerárquico) */}
       <section id="featured-materials" className={cn("py-20 md:py-28 bg-background", isBrowsing && "pt-10")}>
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
@@ -292,18 +302,9 @@ export default function Home() {
             materials={allMaterials || []} 
             onActiveChange={setIsBrowsing}
           />
-
-          {!isBrowsing && (
-            <div className="mt-16 text-center">
-              <Button asChild size="lg" variant="outline" className="font-bold">
-                <Link href="/products">Ver Catálogo Completo</Link>
-              </Button>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* Solo mostrar cualidades finales si NO estamos explorando activamente */}
       {!isBrowsing && (
         <section id="featured-qualities" className="py-20 md:py-28 bg-secondary/50">
           <div className="container mx-auto px-4">
