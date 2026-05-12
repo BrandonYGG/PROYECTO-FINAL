@@ -31,22 +31,25 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
   const orderLink = user ? '/new-order' : '/login';
 
   // Notificar al padre si estamos en modo "exploración activa"
-  // Entendemos por exploración activa cuando hemos entrado en una familia o subfamilia
   useEffect(() => {
     if (onActiveChange) {
       onActiveChange(view !== 'families');
     }
   }, [view, onActiveChange]);
 
-  // Agrupamiento de datos
+  // Agrupamiento de datos con metadatos de familia
   const hierarchy = useMemo(() => {
-    const data: Record<string, Record<string, Material[]>> = {};
+    const data: Record<string, { imageUrl: string | null, subfamilies: Record<string, Material[]> }> = {};
     materials.forEach((m) => {
       const f = m.family || 'General';
       const sf = m.subfamily || 'Varios';
-      if (!data[f]) data[f] = {};
-      if (!data[f][sf]) data[f][sf] = [];
-      data[f][sf].push(m);
+      if (!data[f]) {
+        data[f] = { imageUrl: m.familyImageUrl || null, subfamilies: {} };
+      }
+      if (!data[f].subfamilies[sf]) {
+        data[f].subfamilies[sf] = [];
+      }
+      data[f].subfamilies[sf].push(m);
     });
     return data;
   }, [materials]);
@@ -54,8 +57,8 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
   const families = Object.keys(hierarchy).sort();
   const displayedFamilies = showAllFamilies ? families : families.slice(0, INITIAL_FAMILIES_LIMIT);
   
-  const subfamilies = selectedFamily ? Object.keys(hierarchy[selectedFamily]).sort() : [];
-  const currentMaterials = (selectedFamily && selectedSubfamily) ? hierarchy[selectedFamily][selectedSubfamily] : [];
+  const subfamilies = selectedFamily ? Object.keys(hierarchy[selectedFamily].subfamilies).sort() : [];
+  const currentMaterials = (selectedFamily && selectedSubfamily) ? hierarchy[selectedFamily].subfamilies[selectedSubfamily] : [];
 
   const handleFamilyClick = (family: string) => {
     setSelectedFamily(family);
@@ -124,12 +127,22 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
             className="cursor-pointer hover:border-primary hover:shadow-xl transition-all group overflow-hidden"
             onClick={() => handleFamilyClick(family)}
           >
-            <div className="h-32 bg-primary/5 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-              <Package className="h-12 w-12 text-primary/40 group-hover:scale-110 transition-transform" />
+            <div className="h-40 bg-primary/5 flex items-center justify-center group-hover:bg-primary/10 transition-colors relative">
+              {hierarchy[family].imageUrl ? (
+                <Image 
+                  src={hierarchy[family].imageUrl!} 
+                  alt={family} 
+                  fill 
+                  className="object-cover group-hover:scale-105 transition-transform"
+                  unoptimized
+                />
+              ) : (
+                <Package className="h-12 w-12 text-primary/40 group-hover:scale-110 transition-transform" />
+              )}
             </div>
             <CardHeader className="p-4">
               <CardTitle className="text-lg text-center font-headline capitalize">{family}</CardTitle>
-              <CardDescription className="text-center">{Object.keys(hierarchy[family]).length} Categorías</CardDescription>
+              <CardDescription className="text-center">{Object.keys(hierarchy[family].subfamilies).length} Categorías</CardDescription>
             </CardHeader>
           </Card>
         ))}
@@ -140,12 +153,12 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
             className="cursor-pointer hover:border-primary hover:shadow-xl transition-all group overflow-hidden"
             onClick={() => handleSubfamilyClick(subfamily)}
           >
-            <div className="h-32 bg-secondary/5 flex items-center justify-center group-hover:bg-secondary/10 transition-colors">
+            <div className="h-40 bg-secondary/5 flex items-center justify-center group-hover:bg-secondary/10 transition-colors">
               <Boxes className="h-12 w-12 text-secondary/40 group-hover:scale-110 transition-transform" />
             </div>
             <CardHeader className="p-4">
               <CardTitle className="text-lg text-center font-headline capitalize">{subfamily}</CardTitle>
-              <CardDescription className="text-center">{hierarchy[selectedFamily!][subfamily].length} Productos</CardDescription>
+              <CardDescription className="text-center">{hierarchy[selectedFamily!].subfamilies[subfamily].length} Productos</CardDescription>
             </CardHeader>
           </Card>
         ))}

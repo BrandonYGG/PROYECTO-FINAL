@@ -10,6 +10,7 @@ export interface PublicMaterial {
   imageUrl: string | null;
   family: string;
   subfamily: string;
+  familyImageUrl?: string | null;
 }
 
 export interface AdminMaterial extends PublicMaterial {
@@ -49,7 +50,8 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         subfamilias (
           nombre,
           familias (
-            nombre
+            nombre,
+            image_url
           )
         )
       `)
@@ -92,6 +94,7 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
         subfamily: subfam?.nombre || 'Varios',
+        familyImageUrl: fam?.image_url || null,
       };
     });
   } catch (error: any) {
@@ -120,7 +123,8 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         subfamilias (
           nombre,
           familias (
-            nombre
+            nombre,
+            image_url
           )
         )
       `)
@@ -142,6 +146,7 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
         imageUrl: item.image_url || null,
         family: fam?.nombre || 'General',
         subfamily: subfam?.nombre || 'Varios',
+        familyImageUrl: fam?.image_url || null,
         cost: item.cost || 0,
         createdAt: item.created_at,
       };
