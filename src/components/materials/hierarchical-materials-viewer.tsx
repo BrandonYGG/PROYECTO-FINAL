@@ -54,7 +54,13 @@ export function HierarchicalMaterialsViewer({ materials, onActiveChange }: Hiera
     return data;
   }, [materials]);
 
-  const families = Object.keys(hierarchy).sort();
+  // Filtramos la familia 'General' para mostrar solo aquellas con nombre asignado
+  const families = useMemo(() => {
+    return Object.keys(hierarchy)
+      .filter(f => f !== 'General')
+      .sort();
+  }, [hierarchy]);
+
   const displayedFamilies = showAllFamilies ? families : families.slice(0, INITIAL_FAMILIES_LIMIT);
   
   const subfamilies = selectedFamily ? Object.keys(hierarchy[selectedFamily].subfamilies).sort() : [];
