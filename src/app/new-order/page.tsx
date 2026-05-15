@@ -109,9 +109,10 @@ export default function NewOrderPage() {
         setIsMaterialsLoading(true);
         try {
             const materials = await getMaterials();
-            setMaterialsList(materials);
+            setMaterialsList(materials || []);
         } catch (error) {
             console.error("Failed to fetch materials", error);
+            setMaterialsList([]);
         } finally {
             setIsMaterialsLoading(false);
         }
@@ -121,9 +122,12 @@ export default function NewOrderPage() {
 
   const hierarchicalMaterials = useMemo(() => {
     const hierarchy: Record<string, Record<string, Material[]>> = {};
+    if (!materialsList) return hierarchy;
+    
     materialsList.forEach(m => {
-        const f = m.family || 'General';
-        const sf = m.subfamily || 'Varios';
+        if (!m) return;
+        const f = typeof m.family === 'string' ? m.family : 'General';
+        const sf = typeof m.subfamily === 'string' ? m.subfamily : 'Varios';
         if (!hierarchy[f]) hierarchy[f] = {};
         if (!hierarchy[f][sf]) hierarchy[f][sf] = [];
         hierarchy[f][sf].push(m);
@@ -135,6 +139,7 @@ export default function NewOrderPage() {
   const watchState = form.watch('state');
 
   const total = useMemo(() => {
+    if (!watchMaterials || !materialsList) return 0;
     return watchMaterials.reduce((acc, current) => {
       const materialInfo = materialsList.find(m => m.name === current.name);
       const price = materialInfo?.price || 0;
@@ -323,7 +328,7 @@ export default function NewOrderPage() {
                    
                    const filteredMaterials = materialsList.filter(m => 
                      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                     (m.family && m.family.toLowerCase().includes(searchTerm.toLowerCase()))
+                     (typeof m.family === 'string' && m.family.toLowerCase().includes(searchTerm.toLowerCase()))
                    );
 
                   return (
@@ -374,7 +379,9 @@ export default function NewOrderPage() {
                                             </div>
                                             <div className="flex flex-col items-start truncate flex-1">
                                               <span className="font-bold truncate w-full text-left">{m.name}</span>
-                                              <span className="text-[10px] opacity-70 truncate">{m.family} > {m.subfamily}</span>
+                                              <span className="text-[10px] opacity-70 truncate">
+                                                {typeof m.family === 'string' ? m.family : 'General'} &gt; {typeof m.subfamily === 'string' ? m.subfamily : 'Varios'}
+                                              </span>
                                               <div className="flex items-center gap-2 mt-1">
                                                 <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">${m.price}/{m.unit}</Badge>
                                                 <span className={cn("text-[9px] font-medium", m.stock > 0 ? "text-green-600" : "text-red-600")}>
@@ -491,7 +498,7 @@ export default function NewOrderPage() {
 
               <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
                 <FormField control={form.control} name="deliveryDates" render={({ field }) => (
-                  <FormItem className="w-full max-w-sm">
+                  <FormItem className="w-full max-sm-sm">
                     <FormLabel>Cronograma de Entrega</FormLabel>
                     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <DialogTrigger asChild>

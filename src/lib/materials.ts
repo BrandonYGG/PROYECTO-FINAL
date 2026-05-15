@@ -70,8 +70,8 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       return (fallbackData || []).map(item => ({
         id: item.id.toString(),
         name: item.nombre,
-        price: item.precio || 0,
-        stock: item.stock || 0,
+        price: Number(item.precio) || 0,
+        stock: Number(item.stock) || 0,
         unit: item.unit || 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
@@ -87,13 +87,13 @@ export async function getPublicMaterials(): Promise<PublicMaterial[]> {
       return {
         id: item.id.toString(),
         name: item.nombre,
-        price: item.precio || 0,
-        stock: item.stock || 0,
+        price: Number(item.precio) || 0,
+        stock: Number(item.stock) || 0,
         unit: item.unit || 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
-        family: fam?.nombre || 'General',
-        subfamily: subfam?.nombre || 'Varios',
+        family: (typeof fam?.nombre === 'string' ? fam.nombre : 'General'),
+        subfamily: (typeof subfam?.nombre === 'string' ? subfam.nombre : 'Varios'),
         familyImageUrl: fam?.image_url || null,
       };
     });
@@ -139,15 +139,15 @@ export async function getAdminMaterials(): Promise<AdminMaterial[]> {
       return {
         id: item.id.toString(),
         name: item.nombre,
-        price: item.precio || 0,
-        stock: item.stock || 0,
+        price: Number(item.precio) || 0,
+        stock: Number(item.stock) || 0,
         unit: item.unit || 'Pza',
         description: item.descripcion || '',
         imageUrl: item.image_url || null,
-        family: fam?.nombre || 'General',
-        subfamily: subfam?.nombre || 'Varios',
+        family: (typeof fam?.nombre === 'string' ? fam.nombre : 'General'),
+        subfamily: (typeof subfam?.nombre === 'string' ? subfam.nombre : 'Varios'),
         familyImageUrl: fam?.image_url || null,
-        cost: item.cost || 0,
+        cost: Number(item.cost) || 0,
         createdAt: item.created_at,
       };
     });
@@ -170,7 +170,7 @@ export async function updateMaterialStock(materialId: string | number, quantityT
 
     if (fetchError || !material) throw new Error(`Material ID ${materialId} no encontrado`);
 
-    const newStock = (material.stock || 0) - quantityToSubtract;
+    const newStock = (Number(material.stock) || 0) - Number(quantityToSubtract);
     
     const { error: updateError } = await supabase
       .from('materiales')
