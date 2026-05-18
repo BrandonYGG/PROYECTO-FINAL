@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree, Check } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree, Check, Phone } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -187,6 +187,8 @@ export default function NewOrderPage() {
       const errorFields = Object.keys(errors).map(key => {
           if (key === 'deliveryDates') return 'Periodo de Entrega (necesitas inicio y fin)';
           if (key === 'materials') return 'Materiales';
+          if (key === 'phone') return 'Teléfono (10 dígitos)';
+          if (key === 'colony') return 'Colonia';
           return key;
       }).join(", ");
       
@@ -215,31 +217,45 @@ export default function NewOrderPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleInitialSubmit, onInvalid)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6">
-                <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem><FormLabel>Obra</FormLabel><FormControl><Input placeholder="Nombre del proyecto" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
+                <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Nombre de la Obra</FormLabel><FormControl><Input placeholder="Ej. Casa Bosque" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem className="md:col-span-1">
+                    <FormLabel>Teléfono de Contacto</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="10 dígitos" className="pl-10" {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
-                <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N°</FormLabel><FormControl><Input placeholder="Solo números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 border-b pb-6">
+                <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input placeholder="Av. Principal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N° Exterior</FormLabel><FormControl><Input placeholder="Solo números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="colony" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input placeholder="Ej. Juárez" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                
                 <FormField control={form.control} name="state" render={({ field }) => (
                   <FormItem><FormLabel>Estado</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
                       <SelectContent>{mexicoStates.map(s => <SelectItem key={s.nombre} value={s.nombre}>{s.nombre}</SelectItem>)}</SelectContent>
                     </Select>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="municipality" render={({ field }) => (
-                  <FormItem><FormLabel>Municipio</FormLabel>
+                  <FormItem><FormLabel>Municipio / Delegación</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
                       <SelectContent>{selectedState?.municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                     </Select>
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>C.P.</FormLabel><FormControl><Input placeholder="5 dígitos" {...field} maxLength={5} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input placeholder="5 dígitos" {...field} maxLength={5} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
               </div>
 
               <div className="space-y-4">
@@ -311,13 +327,13 @@ export default function NewOrderPage() {
                         )} />
 
                       <div className="md:col-span-2">
-                          <Label className="text-xs">Precio</Label>
+                          <Label className="text-xs">Precio Unit.</Label>
                           <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}`: '-'} className="bg-muted text-xs h-10" />
                       </div>
 
                       <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
                           <FormItem className="md:col-span-3">
-                            <FormLabel className="text-xs">Cantidad (Stock: {selectedMaterial?.stock || 0})</FormLabel>
+                            <FormLabel className="text-xs">Cantidad (Disponible: {selectedMaterial?.stock || 0})</FormLabel>
                             <FormControl>
                                 <Input 
                                   type="number" 
@@ -347,7 +363,7 @@ export default function NewOrderPage() {
               <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
                 <FormField control={form.control} name="deliveryDates" render={({ field }) => (
                   <FormItem className="w-full max-w-sm">
-                    <FormLabel>Periodo de Entrega (Selecciona Inicio y Fin)</FormLabel>
+                    <FormLabel>Periodo de Entrega</FormLabel>
                     <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal", !field.value?.from && "text-muted-foreground")}>
@@ -377,10 +393,10 @@ export default function NewOrderPage() {
                                     disabled={!field.value?.from || !field.value?.to}
                                 >
                                     <Check className="mr-2 h-4 w-4" />
-                                    Confirmar Fechas
+                                    Confirmar Periodo
                                 </Button>
                                 {!field.value?.to && field.value?.from && (
-                                    <p className="text-[10px] text-center text-amber-600 animate-pulse">Debes seleccionar la fecha de finalización del periodo.</p>
+                                    <p className="text-[10px] text-center text-amber-600 animate-pulse">Selecciona la fecha de finalización.</p>
                                 )}
                             </div>
                         </PopoverContent>
@@ -396,7 +412,7 @@ export default function NewOrderPage() {
                     {isProcessing ? (
                         <>
                             <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                            Procesando...
+                            Enviando...
                         </>
                     ) : (
                         'Confirmar Pedido'

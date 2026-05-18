@@ -116,7 +116,6 @@ export default function OrderList() {
         // RESTAURAR STOCK SI SE CANCELA
         if (newStatus === 'Cancelado' && order.status !== 'Cancelado') {
             for (const item of order.materials) {
-                // Buscamos en el catálogo cargado
                 const materialInfo = materialsCatalog.find(m => m.name === item.name);
                 if (materialInfo) {
                     await updateMaterialStock(materialInfo.id, item.quantity, 'add');
