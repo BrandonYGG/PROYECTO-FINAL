@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree, AlertCircle } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -97,6 +97,12 @@ export default function NewOrderPage() {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "materials" });
 
+  // Sincronización instantánea del total usando useWatch
+  const watchedMaterials = useWatch({
+    control: form.control,
+    name: "materials",
+  });
+
   useEffect(() => {
     setMounted(true);
     getMaterials().then(m => {
@@ -117,15 +123,15 @@ export default function NewOrderPage() {
     return hierarchy;
   }, [materialsList]);
 
-  const watchMaterials = form.watch('materials');
   const watchState = form.watch('state');
 
+  // El total ahora se recalcula instantáneamente al detectar cambios en el array de materiales
   const total = useMemo(() => {
-    return (watchMaterials || []).reduce((acc, current) => {
+    return (watchedMaterials || []).reduce((acc, current) => {
       const materialInfo = materialsList.find(m => m.name === current.name);
       return acc + ((materialInfo?.price || 0) * (Number(current.quantity) || 0));
     }, 0);
-  }, [watchMaterials, materialsList]);
+  }, [watchedMaterials, materialsList]);
 
   useEffect(() => {
     if (watchState) {
@@ -179,7 +185,6 @@ export default function NewOrderPage() {
     }
   }
 
-  // Manejador para errores de validación no visibles
   const onInvalid = () => {
       toast({
           variant: "destructive",
@@ -236,7 +241,8 @@ export default function NewOrderPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-bold flex items-center gap-2"><FolderTree className="h-5 w-5" /> Selección de Materiales</h3>
                 {fields.map((field, index) => {
-                   const selectedMaterial = materialsList.find(m => m.name === watchMaterials[index]?.name);
+                   const currentFieldValue = watchedMaterials?.[index];
+                   const selectedMaterial = materialsList.find(m => m.name === currentFieldValue?.name);
                    const searchTerm = searchTerms[index] || "";
                    const filteredMaterials = materialsList.filter(m => 
                      m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
