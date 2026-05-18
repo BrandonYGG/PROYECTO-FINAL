@@ -116,6 +116,7 @@ export default function OrderList() {
         // RESTAURAR STOCK SI SE CANCELA
         if (newStatus === 'Cancelado' && order.status !== 'Cancelado') {
             for (const item of order.materials) {
+                // Buscamos en el catálogo cargado
                 const materialInfo = materialsCatalog.find(m => m.name === item.name);
                 if (materialInfo) {
                     await updateMaterialStock(materialInfo.id, item.quantity, 'add');
@@ -144,6 +145,7 @@ export default function OrderList() {
         setOrders(prev => prev.map(o => o.id === order.id ? {...o, status: newStatus, deliveryConfirmation: deliveryData || o.deliveryConfirmation } : o));
         toast({ title: "Estado Actualizado", description: `Pedido marcado como ${newStatus}.` });
     } catch (e) {
+        console.error("Error updating status:", e);
         toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el estado del pedido." });
     }
   }

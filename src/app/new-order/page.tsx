@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -48,7 +48,7 @@ const orderSchema = z.object({
   deliveryDates: z.object({
     from: z.date({ required_error: "La fecha de inicio es requerida."}),
     to: z.date({ required_error: "La fecha de fin es requerida."}),
-  }),
+  }, { required_error: "Debes seleccionar un rango de fechas completo." }),
 });
 
 type OrderFormData = z.infer<typeof orderSchema>;
@@ -73,6 +73,7 @@ export default function NewOrderPage() {
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
@@ -91,13 +92,12 @@ export default function NewOrderPage() {
       state: '',
       municipality: '',
       materials: [{ name: '', quantity: 1 }],
-      deliveryDates: { from: undefined, to: undefined },
+      deliveryDates: { from: undefined as any, to: undefined as any },
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "materials" });
 
-  // Sincronización instantánea del total usando useWatch
   const watchedMaterials = useWatch({
     control: form.control,
     name: "materials",
@@ -125,7 +125,6 @@ export default function NewOrderPage() {
 
   const watchState = form.watch('state');
 
-  // El total ahora se recalcula instantáneamente al detectar cambios en el array de materiales
   const total = useMemo(() => {
     return (watchedMaterials || []).reduce((acc, current) => {
       const materialInfo = materialsList.find(m => m.name === current.name);
@@ -170,7 +169,6 @@ export default function NewOrderPage() {
           throw error;
       });
 
-      // Actualización de stock en Supabase
       for (const item of values.materials) {
           const materialInfo = materialsList.find(m => m.name === item.name);
           if (materialInfo) await updateMaterialStock(materialInfo.id, item.quantity, 'subtract');
@@ -185,11 +183,17 @@ export default function NewOrderPage() {
     }
   }
 
-  const onInvalid = () => {
+  const onInvalid = (errors: any) => {
+      const errorFields = Object.keys(errors).map(key => {
+          if (key === 'deliveryDates') return 'Periodo de Entrega (necesitas inicio y fin)';
+          if (key === 'materials') return 'Materiales';
+          return key;
+      }).join(", ");
+      
       toast({
           variant: "destructive",
           title: "Formulario Incompleto",
-          description: "Por favor revisa todos los campos obligatorios y asegúrate de añadir materiales.",
+          description: `Por favor revisa los campos: ${errorFields}. Asegúrate de que el total sea mayor a 0.`,
       });
   };
 
@@ -343,16 +347,42 @@ export default function NewOrderPage() {
               <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
                 <FormField control={form.control} name="deliveryDates" render={({ field }) => (
                   <FormItem className="w-full max-w-sm">
-                    <FormLabel>Periodo de Entrega</FormLabel>
-                    <Popover>
+                    <FormLabel>Periodo de Entrega (Selecciona Inicio y Fin)</FormLabel>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full h-12 justify-start text-left font-normal">
+                            <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal", !field.value?.from && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value?.from ? `${format(field.value.from, "PP", { locale: es })} - ${field.value.to ? format(field.value.to, "PP", { locale: es }) : ''}` : "Seleccionar fechas"}
+                                {field.value?.from ? (
+                                    field.value.to ? (
+                                        `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}`
+                                    ) : (
+                                        `${format(field.value.from, "PP", { locale: es })} (Selecciona fin...)`
+                                    )
+                                ) : "Seleccionar periodo de entrega"}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="range" selected={{ from: field.value?.from, to: field.value?.to }} onSelect={(range) => field.onChange(range)} disabled={{ before: new Date() }} locale={es} initialFocus />
+                            <div className="p-4 space-y-4">
+                                <Calendar 
+                                    mode="range" 
+                                    selected={{ from: field.value?.from, to: field.value?.to }} 
+                                    onSelect={(range) => field.onChange(range)} 
+                                    disabled={{ before: new Date() }} 
+                                    locale={es} 
+                                    initialFocus 
+                                />
+                                <Button 
+                                    className="w-full" 
+                                    onClick={() => setIsCalendarOpen(false)}
+                                    disabled={!field.value?.from || !field.value?.to}
+                                >
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Confirmar Fechas
+                                </Button>
+                                {!field.value?.to && field.value?.from && (
+                                    <p className="text-[10px] text-center text-amber-600 animate-pulse">Debes seleccionar la fecha de finalización del periodo.</p>
+                                )}
+                            </div>
                         </PopoverContent>
                     </Popover>
                     <FormMessage />
