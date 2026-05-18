@@ -1,149 +1,56 @@
-/**
- * Filosofía Principal: Este conjunto de reglas impone un modelo estricto de propiedad del usuario,
- * con una excepción especial para el rol de 'admin'. Está diseñado para la seguridad y escalabilidad,
- * asegurando que los usuarios solo puedan gestionar sus propios datos, mientras que los administradores
- * pueden leer todos los datos de usuarios y empresas para supervisión.
- *
- * Estructura de Datos:
- * - /users/{userId}: Datos comunes del usuario (ej. email, userType). El ID del documento es el UID de autenticación.
- * - /users/{userId}/orders/{orderId}: Almacena pedidos de clientes, anidados bajo el usuario.
- * - /users/{userId}/notifications/{notificationId}: Almacena notificaciones para el usuario.
- * - /businesses/{userId}: Almacena datos específicos de empresas para usuarios de tipo empresa.
- * - /products/{productId}: Almacena listados de productos, que son públicos.
- *
- * Decisiones Clave de Seguridad:
- * - Propiedad Basada en la Ruta: Todos los datos específicos del usuario (incluidos los pedidos y notificaciones) se almacenan en documentos
- *   o subcolecciones donde la ruta contiene el UID de autenticación del usuario.
- * - Acceso de Lectura para Administradores: Los usuarios con `userType == 'admin'` pueden leer todos los documentos
- *   en las colecciones `/users`, `/businesses` y todas las subcolecciones de `orders` pero no pueden escribir en ellos (excepto sus propios datos).
- *   proporciona supervisión del sistema sin permitir suplantación o manipulación de datos.
- * - Listado de Usuarios Restringido: Los usuarios regulares no pueden listar el contenido de las
- *   colecciones '/users' o '/businesses' para proteger la privacidad.
- * - Solo Auto-Creación: Los usuarios solo pueden crear un documento de perfil para
- *   sí mismos, donde el ID del documento coincide con su propio UID.
- * - Visibilidad Pública de Productos: La colección '/products' es de lectura pública.
- * - Acceso de Escritura a Productos Restringido: Todas las operaciones de escritura en productos
- *   están deshabilitadas como una medida de seguridad por defecto.
- * - Propiedad de Pedidos: Los usuarios solo pueden crear y leer sus propios pedidos a través de la ruta anidada.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ----------------------------------------------------------------------
-    // Funciones Auxiliares
-    // ----------------------------------------------------------------------
-
-    /**
-     * Verifica si el usuario está autenticado.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * Verifica si el UID del usuario autenticado actualmente coincide con el userId proporcionado.
-     * Esta es la función principal para verificar la propiedad del documento.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
+    // --- FUNCIONES ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     
-    /**
-     * Verifica si el usuario solicitante tiene un rol de 'admin' en su propio documento de usuario.
-     * Esta es una lectura de documento cruzada, que es eficiente para las reglas.
-     */
+    // Función de admin robusta que evita recursión infinita en consultas de grupo
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'admin';
     }
 
+    // --- BYPASS GLOBAL PARA ADMIN ---
+    // Permite al administrador leer y escribir en CUALQUIER colección o subcolección
+    match /{path=**} {
+      allow read, write: if isAdmin();
+    }
 
-    // ----------------------------------------------------------------------
-    // Colección: users
-    // ----------------------------------------------------------------------
-
-    /**
-     * @description Controla el acceso a los perfiles de usuario individuales y sus subcolecciones.
-     * El ID del documento debe ser el UID del usuario.
-     * @path /users/{userId}
-     */
+    // --- REGLAS DE USUARIO ---
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin(); // Solo los administradores pueden listar usuarios.
+      allow get: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
+      allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
 
-      // ----------------------------------------------------------------------
-      // Subcolección: orders
-      // ----------------------------------------------------------------------
-
-      /**
-       * @description Controla el acceso a los pedidos de los clientes, anidados bajo cada usuario.
-       * @path /users/{userId}/orders/{orderId}
-       */
       match /orders/{orderId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update: if isOwner(userId) || isAdmin(); // Usuario o admin puede cambiar el estado
-        allow delete: if isAdmin(); // Solo los administradores pueden eliminar pedidos
+        allow read, create: if isOwner(userId);
+        allow update: if isOwner(userId);
       }
 
-      // ----------------------------------------------------------------------
-      // Subcolección: notifications
-      // ----------------------------------------------------------------------
-
-      /**
-       * @description Controla el acceso a las notificaciones de los usuarios.
-       * @path /users/{userId}/notifications/{notificationId}
-       */
       match /notifications/{notificationId} {
-        allow get, list: if isOwner(userId); // Los usuarios solo leen sus notificaciones
-        allow create: if isAdmin(); // Solo los administradores pueden crear notificaciones
-        allow update: if isOwner(userId); // El usuario puede marcarlas como leídas
-        allow delete: if isOwner(userId); // El usuario puede borrar sus notificaciones
+        allow read, update, delete: if isOwner(userId);
       }
     }
 
-    // ----------------------------------------------------------------------
-    // Colección: businesses
-    // ----------------------------------------------------------------------
-
-    /**
-     * @description Controla el acceso a los perfiles específicos de empresas.
-     * El ID del documento debe ser el UID del usuario.
-     * @path /businesses/{businessId}
-     */
     match /businesses/{businessId} {
-      function isBusinessOwner() {
-        return isOwner(businessId) && exists(/databases/$(database)/documents/users/$(businessId));
-      }
-
-      allow get: if isBusinessOwner() || isAdmin();
-      allow list: if isAdmin(); // Solo los administradores pueden listar empresas.
-      allow create: if isBusinessOwner() && request.resource.data.id == businessId;
-      allow update: if isBusinessOwner() && request.resource.data.id == resource.data.id;
-      allow delete: if isBusinessOwner();
+      allow get, create, update, delete: if isOwner(businessId);
     }
 
-    // ----------------------------------------------------------------------
-    // Colección: products
-    // ----------------------------------------------------------------------
-
-    /**
-     * @description Controla el acceso a los listados de productos.
-     * @path /products/{productId}
-     */
     match /products/{productId} {
-      allow get, list: if true; // Lectura pública
-      allow create, update, delete: if false;
+      allow read: if true;
     }
-    
-    // La colección /orders a nivel raíz ya no se utiliza para el control de acceso principal.
-    // Se puede dejar una regla restrictiva o eliminarla.
-    // Por seguridad, se agrega una regla para denegar todo por defecto a nivel raíz si se crea accidentalmente.
-    match /orders/{orderId} {
-      allow read, write: if false;
+
+    // --- SOPORTE PARA COLLECTION GROUPS ---
+    // Específicamente para que isAdmin() pueda listar todos los pedidos y notificaciones
+    match /{path=**}/orders/{orderId} {
+      allow list: if isAdmin();
+    }
+    match /{path=**}/notifications/{notificationId} {
+      allow list: if isAdmin();
     }
   }
 }

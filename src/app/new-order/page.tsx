@@ -92,42 +92,24 @@ export default function NewOrderPage() {
       state: '',
       municipality: '',
       materials: [{ name: '', quantity: 1 }],
-      deliveryDates: {
-        from: undefined,
-        to: undefined
-      },
+      deliveryDates: { from: undefined, to: undefined },
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "materials"
-  });
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "materials" });
 
   useEffect(() => {
-    const fetchMaterials = async () => {
-        setIsMaterialsLoading(true);
-        try {
-            const materials = await getMaterials();
-            setMaterialsList(materials || []);
-        } catch (error) {
-            console.error("Failed to fetch materials", error);
-            setMaterialsList([]);
-        } finally {
-            setIsMaterialsLoading(false);
-        }
-    }
-    fetchMaterials();
+    getMaterials().then(m => {
+        setMaterialsList(m);
+        setIsMaterialsLoading(false);
+    });
   }, []);
 
   const hierarchicalMaterials = useMemo(() => {
     const hierarchy: Record<string, Record<string, Material[]>> = {};
-    if (!materialsList) return hierarchy;
-    
     materialsList.forEach(m => {
-        if (!m) return;
-        const f = typeof m.family === 'string' ? m.family : 'General';
-        const sf = typeof m.subfamily === 'string' ? m.subfamily : 'Varios';
+        const f = String(m.family || 'General');
+        const sf = String(m.subfamily || 'Varios');
         if (!hierarchy[f]) hierarchy[f] = {};
         if (!hierarchy[f][sf]) hierarchy[f][sf] = [];
         hierarchy[f][sf].push(m);
@@ -139,155 +121,69 @@ export default function NewOrderPage() {
   const watchState = form.watch('state');
 
   const total = useMemo(() => {
-    if (!watchMaterials || !materialsList) return 0;
-    return watchMaterials.reduce((acc, current) => {
+    return (watchMaterials || []).reduce((acc, current) => {
       const materialInfo = materialsList.find(m => m.name === current.name);
-      const price = materialInfo?.price || 0;
-      const quantity = Number(current.quantity) || 0;
-      return acc + (price * quantity);
+      return acc + ((materialInfo?.price || 0) * (Number(current.quantity) || 0));
     }, 0);
   }, [watchMaterials, materialsList]);
 
   useEffect(() => {
     if (watchState) {
-        const stateData = mexicoStates.find(s => s.nombre === watchState) || null;
-        setSelectedState(stateData);
+        setSelectedState(mexicoStates.find(s => s.nombre === watchState) || null);
     }
   }, [watchState]);
 
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
-
-    let hasStockError = false;
-    values.materials.forEach((item, index) => {
-      const materialInfo = materialsList.find(m => m.name === item.name);
-      if (materialInfo) {
-        if (item.quantity > materialInfo.stock) {
-          form.setError(`materials.${index}.quantity`, {
-            type: "manual",
-            message: `Stock insuficiente. Disponible: ${materialInfo.stock}`
-          });
-          hasStockError = true;
-        }
-      }
-    });
-
-    if (hasStockError) {
-      toast({
-        variant: "destructive",
-        title: "Error de Inventario",
-        description: "Uno o más productos superan el stock disponible."
-      });
-      return;
-    }
-
     setIsProcessing(true);
-
     try {
-      const { from } = values.deliveryDates;
-      const priority = getPriorityFromDate(from);
-      
+      const priority = getPriorityFromDate(values.deliveryDates.from);
       let location = { lat: 19.4326, lng: -99.1332 }; 
       try {
-        const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}, C.P. ${values.postalCode}`;
+        const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}`;
         const geocoded = await geocodeAddress({ address: fullAddress });
         if (geocoded) location = geocoded;
-      } catch (e) { console.warn("Geo fallback used"); }
+      } catch (e) { console.warn("Geo fallback"); }
 
-      await finalizeOrder(values, priority, location);
-    } catch(err: any) {
-        toast({ variant: "destructive", title: "Error", description: err.message });
+      const orderData = { 
+        ...values, location, total, userId: user.uid, priority, status: 'Pendiente', createdAt: serverTimestamp(),
+      };
+
+      const ordersRef = collection(firestore, 'users', user.uid, 'orders');
+      await addDoc(ordersRef, orderData);
+
+      for (const item of values.materials) {
+          const materialInfo = materialsList.find(m => m.name === item.name);
+          if (materialInfo) await updateMaterialStock(materialInfo.id, item.quantity, 'subtract');
+      }
+
+      toast({ title: "Pedido Enviado", description: "Tu pedido se ha procesado correctamente." });
+      router.push('/profile');
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
         setIsProcessing(false);
     }
   }
-
-  const finalizeOrder = async (formData: OrderFormData, priority: string, location: {lat: number, lng: number}) => {
-    if (!user || !firestore) return;
-    setIsSubmitting(true);
-
-    try {
-        const orderData = { 
-            ...formData, 
-            location,
-            total,
-            userId: user.uid,
-            priority,
-            status: 'Pendiente',
-            createdAt: serverTimestamp(),
-        };
-
-        const ordersRef = collection(firestore, 'users', user.uid, 'orders');
-        await addDoc(ordersRef, orderData);
-
-        for (const item of formData.materials) {
-            const materialInfo = materialsList.find(m => m.name === item.name);
-            if (materialInfo) {
-                await updateMaterialStock(materialInfo.id, item.quantity);
-            }
-        }
-
-        toast({ title: "Pedido Enviado", description: "Tu pedido se ha guardado correctamente y el inventario ha sido actualizado." });
-        router.push('/profile');
-    } catch (error: any) {
-        toast({ variant: "destructive", title: "Error", description: "Hubo un problema al procesar el pedido: " + error.message });
-        setIsSubmitting(false);
-        setIsProcessing(false);
-    }
-  };
 
   return (
     <div className="container mx-auto py-12 px-4 animate-fade-in">
       <Card className="max-w-4xl mx-auto shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
-          <CardDescription>Selecciona tus materiales y verifica la disponibilidad en tiempo real.</CardDescription>
+          <CardDescription>Selecciona tus materiales y verifica disponibilidad.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleInitialSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6">
-                <FormField control={form.control} name="requesterName" render={({ field }) => (
-                  <FormItem><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="projectName" render={({ field }) => (
-                  <FormItem><FormLabel>Obra</FormLabel><FormControl><Input placeholder="Nombre del proyecto" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="tel" 
-                        placeholder="Solo números" 
-                        {...field} 
-                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem><FormLabel>Obra</FormLabel><FormControl><Input placeholder="Nombre del proyecto" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
-                <FormField control={form.control} name="street" render={({ field }) => (
-                  <FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="number" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>N°</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Números" 
-                        {...field} 
-                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="colony" render={({ field }) => (
-                  <FormItem><FormLabel>Colonia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+                <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N°</FormLabel><FormControl><Input placeholder="Números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="state" render={({ field }) => (
                   <FormItem><FormLabel>Estado</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
@@ -304,19 +200,7 @@ export default function NewOrderPage() {
                     </Select>
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="postalCode" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>C.P.</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="5 dígitos" 
-                        {...field} 
-                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>C.P.</FormLabel><FormControl><Input placeholder="5 dígitos" {...field} maxLength={5} /></FormControl><FormMessage /></FormItem>)} />
               </div>
 
               <div className="space-y-4">
@@ -324,11 +208,9 @@ export default function NewOrderPage() {
                 {fields.map((field, index) => {
                    const selectedMaterial = materialsList.find(m => m.name === watchMaterials[index]?.name);
                    const searchTerm = searchTerms[index] || "";
-                   const isSearching = searchTerm.length > 0;
-                   
                    const filteredMaterials = materialsList.filter(m => 
-                     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                     (typeof m.family === 'string' && m.family.toLowerCase().includes(searchTerm.toLowerCase()))
+                     m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                     String(m.family).toLowerCase().includes(searchTerm.toLowerCase())
                    );
 
                   return (
@@ -340,103 +222,42 @@ export default function NewOrderPage() {
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button variant="outline" className={cn("w-full h-12 justify-between font-normal bg-card", !field.value && "text-muted-foreground")}>
-                                    <div className="flex items-center gap-2 truncate">
-                                        {selectedMaterial?.imageUrl && (
-                                            <div className="relative w-8 h-8 rounded overflow-hidden shrink-0 border">
-                                                <Image src={selectedMaterial.imageUrl} alt={selectedMaterial.name} fill className="object-cover" />
-                                            </div>
-                                        )}
-                                        <span className="truncate">{field.value || "Selecciona material..."}</span>
-                                    </div>
+                                    <span className="truncate">{field.value || "Selecciona material..."}</span>
                                     <Search className="ml-2 h-4 w-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
                               <PopoverContent className="w-[400px] p-0" align="start">
-                                <div className="p-2 border-b">
-                                  <div className="relative">
-                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      placeholder="Buscar por nombre o marca..."
-                                      className="pl-8"
-                                      value={searchTerm}
-                                      onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
-                                    />
-                                  </div>
-                                </div>
-                                <ScrollArea className="h-[400px]">
-                                  {isSearching ? (
+                                <div className="p-2 border-b"><Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))} /></div>
+                                <ScrollArea className="h-[300px]">
+                                  {searchTerm ? (
                                     <div className="p-2 space-y-1">
                                       {filteredMaterials.map(m => (
                                         <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
-                                          <div className="flex items-center gap-3 w-full">
-                                            <div className="relative w-12 h-12 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
-                                                {m.imageUrl ? (
-                                                    <Image src={m.imageUrl} alt={m.name} fill className="object-cover" />
-                                                ) : (
-                                                    <ImageIcon className="h-6 w-6 opacity-20" />
-                                                )}
+                                          <div className="flex items-center gap-3 w-full text-left">
+                                            <div className="flex flex-col truncate flex-1">
+                                              <span className="font-bold truncate">{m.name}</span>
+                                              <span className="text-[10px] opacity-70 truncate">{String(m.family)} &gt; {String(m.subfamily)}</span>
                                             </div>
-                                            <div className="flex flex-col items-start truncate flex-1">
-                                              <span className="font-bold truncate w-full text-left">{m.name}</span>
-                                              <span className="text-[10px] opacity-70 truncate">
-                                                {typeof m.family === 'string' ? m.family : 'General'} &gt; {typeof m.subfamily === 'string' ? m.subfamily : 'Varios'}
-                                              </span>
-                                              <div className="flex items-center gap-2 mt-1">
-                                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">${m.price}/{m.unit}</Badge>
-                                                <span className={cn("text-[9px] font-medium", m.stock > 0 ? "text-green-600" : "text-red-600")}>
-                                                  Stock: {m.stock}
-                                                </span>
-                                              </div>
-                                            </div>
+                                            <Badge variant="secondary" className="text-[9px]">${m.price}/{m.unit}</Badge>
                                           </div>
                                         </Button>
                                       ))}
-                                      {filteredMaterials.length === 0 && <p className="text-center p-4 text-muted-foreground">Sin resultados</p>}
                                     </div>
                                   ) : (
                                     <Accordion type="single" collapsible className="w-full">
                                       {Object.entries(hierarchicalMaterials).map(([family, subfamilies]) => (
                                         <AccordionItem value={family} key={family} className="border-none">
-                                          <AccordionTrigger className="px-4 py-2 hover:no-underline hover:bg-muted/50 text-sm font-bold">
-                                            {family}
-                                          </AccordionTrigger>
-                                          <AccordionContent className="pb-0">
-                                            <Accordion type="single" collapsible className="w-full pl-4 border-l ml-4">
-                                              {Object.entries(subfamilies).map(([subfamily, items]) => (
-                                                <AccordionItem value={subfamily} key={subfamily} className="border-none">
-                                                  <AccordionTrigger className="py-2 hover:no-underline text-xs text-muted-foreground italic">
-                                                    {subfamily} ({items.length})
-                                                  </AccordionTrigger>
-                                                  <AccordionContent className="pb-2">
-                                                    <div className="flex flex-col gap-1 pr-2">
-                                                      {items.map(m => (
-                                                        <Button key={m.id} variant="ghost" className="justify-start h-auto py-2 text-xs font-normal" onClick={() => field.onChange(m.name)}>
-                                                          <div className="flex items-center gap-2 w-full">
-                                                            <div className="relative w-10 h-10 rounded border overflow-hidden shrink-0 bg-muted flex items-center justify-center">
-                                                                {m.imageUrl ? (
-                                                                    <Image src={m.imageUrl} alt={m.name} fill className="object-cover" />
-                                                                ) : (
-                                                                    <ImageIcon className="h-5 w-5 opacity-20" />
-                                                                )}
-                                                            </div>
-                                                            <div className="flex flex-col items-start truncate flex-1">
-                                                              <span className="truncate text-left font-medium">{m.name}</span>
-                                                              <div className="flex items-center gap-2 mt-0.5">
-                                                                <span className="opacity-70 text-[10px]">${m.price}/{m.unit}</span>
-                                                                <span className={cn("text-[10px]", m.stock > 0 ? "text-green-600" : "text-red-600")}>
-                                                                  Stock: {m.stock}
-                                                                </span>
-                                                              </div>
-                                                            </div>
-                                                          </div>
-                                                        </Button>
-                                                      ))}
-                                                    </div>
-                                                  </AccordionContent>
-                                                </AccordionItem>
-                                              ))}
-                                            </Accordion>
+                                          <AccordionTrigger className="px-4 py-2 hover:no-underline text-sm font-bold">{family}</AccordionTrigger>
+                                          <AccordionContent className="pb-0 pl-4 border-l ml-4">
+                                            {Object.entries(subfamilies).map(([subfamily, items]) => (
+                                              <div key={subfamily} className="py-2">
+                                                <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">{subfamily}</p>
+                                                {items.map(m => (
+                                                  <Button key={m.id} variant="ghost" className="w-full justify-start text-xs py-1 h-auto" onClick={() => field.onChange(m.name)}>{m.name}</Button>
+                                                ))}
+                                              </div>
+                                            ))}
                                           </AccordionContent>
                                         </AccordionItem>
                                       ))}
@@ -450,88 +271,42 @@ export default function NewOrderPage() {
                         )} />
 
                       <div className="md:col-span-2">
-                          <Label className="text-xs">Precio Unitario</Label>
+                          <Label className="text-xs">Precio</Label>
                           <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}`: '-'} className="bg-muted text-xs h-10" />
                       </div>
 
                       <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel className="text-xs">Cantidad</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Input 
-                                  type="number" 
-                                  step="0.01"
-                                  {...field} 
-                                  className={cn(
-                                    "h-10 pr-10",
-                                    selectedMaterial && field.value > selectedMaterial.stock && "border-destructive focus-visible:ring-destructive"
-                                  )} 
-                                />
-                                {selectedMaterial && (
-                                  <span className={cn(
-                                    "absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold",
-                                    field.value > selectedMaterial.stock ? "text-destructive animate-pulse" : "text-muted-foreground"
-                                  )}>
-                                    / {selectedMaterial.stock}
-                                  </span>
-                                )}
-                              </div>
-                            </FormControl>
+                          <FormItem className="md:col-span-3">
+                            <FormLabel className="text-xs">Cantidad (Stock: {selectedMaterial?.stock || 0})</FormLabel>
+                            <FormControl><Input type="number" step="0.01" {...field} className="h-10" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                       
                       <div className="md:col-span-1 flex justify-center pb-0.5">
-                        <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
                   )
                 })}
-
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1 })} className="w-full">
-                  <Plus className="mr-2 h-4 w-4" /> Añadir otro material
-                </Button>
+                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1 })} className="w-full"><Plus className="mr-2 h-4 w-4" /> Añadir otro material</Button>
               </div>
 
               <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
                 <FormField control={form.control} name="deliveryDates" render={({ field }) => (
-                  <FormItem className="w-full max-sm-sm">
-                    <FormLabel>Cronograma de Entrega</FormLabel>
-                    <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" type="button" className="w-full h-12 justify-start text-left font-normal bg-card">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value?.from ? (field.value.to ? `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}` : format(field.value.from, "PP", { locale: es })) : <span>Selecciona período de entrega</span>}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-4xl">
-                        <DialogHeader>
-                          <DialogTitle>Seleccionar Período de Entrega</DialogTitle>
-                          <DialogDescription>
-                            Elige el rango de fechas programado para recibir tus materiales en la obra.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="p-4 flex justify-center">
-                          <Calendar
-                            mode="range"
-                            selected={{ from: field.value?.from, to: field.value?.to }}
-                            onSelect={(range) => {
-                                field.onChange(range);
-                            }}
-                            numberOfMonths={2}
-                            locale={es}
-                            className="rounded-md border shadow"
-                            disabled={{ before: new Date() }}
-                          />
-                        </div>
-                        <DialogFooter>
-                          <Button type="button" onClick={() => setIsCalendarOpen(false)}>Confirmar Selección</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                  <FormItem className="w-full max-w-sm">
+                    <FormLabel>Periodo de Entrega</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full h-12 justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {field.value?.from ? `${format(field.value.from, "PP", { locale: es })} - ${field.value.to ? format(field.value.to, "PP", { locale: es }) : ''}` : "Seleccionar fechas"}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="range" selected={{ from: field.value?.from, to: field.value?.to }} onSelect={(range) => field.onChange(range)} disabled={{ before: new Date() }} locale={es} initialFocus />
+                        </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -539,8 +314,8 @@ export default function NewOrderPage() {
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground uppercase font-bold">Total Estimado</p>
                   <p className="text-4xl font-extrabold text-primary">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-                  <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing || isSubmitting || total === 0}>
-                    {isProcessing || isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirmar Pedido'}
+                  <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing || total === 0}>
+                    {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirmar Pedido'}
                   </Button>
                 </div>
               </div>
