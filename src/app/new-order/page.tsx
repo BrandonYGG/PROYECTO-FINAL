@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree, AlertCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -26,6 +26,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -133,6 +135,11 @@ export default function NewOrderPage() {
 
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
+    if (total <= 0) {
+        toast({ variant: "destructive", title: "Error en el pedido", description: "Debes seleccionar al menos un material con cantidad válida." });
+        return;
+    }
+
     setIsProcessing(true);
     try {
       const priority = getPriorityFromDate(values.deliveryDates.from);
@@ -148,8 +155,16 @@ export default function NewOrderPage() {
       };
 
       const ordersRef = collection(firestore, 'users', user.uid, 'orders');
-      await addDoc(ordersRef, orderData);
+      addDoc(ordersRef, orderData).catch(error => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: ordersRef.path,
+              operation: 'create',
+              requestResourceData: orderData
+          }));
+          throw error;
+      });
 
+      // Actualización de stock en Supabase
       for (const item of values.materials) {
           const materialInfo = materialsList.find(m => m.name === item.name);
           if (materialInfo) await updateMaterialStock(materialInfo.id, item.quantity, 'subtract');
@@ -158,11 +173,20 @@ export default function NewOrderPage() {
       toast({ title: "Pedido Enviado", description: "Tu pedido se ha procesado correctamente." });
       router.push('/profile');
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Error", description: error.message });
+        toast({ variant: "destructive", title: "Error", description: error.message || "Ocurrió un error al procesar el pedido." });
     } finally {
         setIsProcessing(false);
     }
   }
+
+  // Manejador para errores de validación no visibles
+  const onInvalid = () => {
+      toast({
+          variant: "destructive",
+          title: "Formulario Incompleto",
+          description: "Por favor revisa todos los campos obligatorios y asegúrate de añadir materiales.",
+      });
+  };
 
   if (!mounted) {
     return (
@@ -181,7 +205,7 @@ export default function NewOrderPage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleInitialSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handleInitialSubmit, onInvalid)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6">
                 <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem><FormLabel>Obra</FormLabel><FormControl><Input placeholder="Nombre del proyecto" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -189,7 +213,7 @@ export default function NewOrderPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
                 <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N°</FormLabel><FormControl><Input placeholder="Números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N°</FormLabel><FormControl><Input placeholder="Solo números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="state" render={({ field }) => (
                   <FormItem><FormLabel>Estado</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
@@ -288,6 +312,7 @@ export default function NewOrderPage() {
                                 <Input 
                                   type="number" 
                                   step="1"
+                                  placeholder="0"
                                   {...field} 
                                   className="h-10" 
                                   onChange={(e) => {
@@ -331,8 +356,15 @@ export default function NewOrderPage() {
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground uppercase font-bold">Total Estimado</p>
                   <p className="text-4xl font-extrabold text-primary">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-                  <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing || total === 0}>
-                    {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : 'Confirmar Pedido'}
+                  <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing}>
+                    {isProcessing ? (
+                        <>
+                            <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                            Procesando...
+                        </>
+                    ) : (
+                        'Confirmar Pedido'
+                    )}
                   </Button>
                 </div>
               </div>
