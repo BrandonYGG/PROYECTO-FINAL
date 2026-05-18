@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 export default function UserList() {
   const firestore = useFirestore();
   
-  // Filtro de seguridad aplicado en la consulta, no en el navegador
+  // Filtro de seguridad aplicado en la consulta
   const usersQuery = useMemoFirebase(() => {
     return query(
       collection(firestore, 'users'), 

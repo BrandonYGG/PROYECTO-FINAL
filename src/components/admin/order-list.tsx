@@ -40,11 +40,9 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 import { Separator } from '../ui/separator';
 import { useState, useEffect, useRef } from 'react';
 import SignaturePad from './signature-pad';
-import { Calendar } from '../ui/calendar';
 import { getMaterials, updateMaterialStock, type Material } from '@/lib/materials';
 
 declare module 'jspdf' {
@@ -80,7 +78,6 @@ export default function OrderList() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-  const calendarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchAllOrders = async () => {
@@ -88,10 +85,9 @@ export default function OrderList() {
       setIsLoading(true);
       setError(null);
       try {
-        const [materialsData] = await Promise.all([getMaterials()]);
+        const materialsData = await getMaterials();
         setMaterialsCatalog(materialsData);
 
-        // Uso de Collection Group para máxima eficiencia
         const ordersQuery = query(collectionGroup(firestore, 'orders'), orderBy('createdAt', 'desc'));
         const ordersSnapshot = await getDocs(ordersQuery).catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
@@ -125,11 +121,12 @@ export default function OrderList() {
         const updateData: any = { status: newStatus };
         if (deliveryData) updateData.deliveryConfirmation = deliveryData;
 
-        // Si se cancela, devolver materiales al stock
+        // CRÍTICO: Si se cancela, devolver materiales al stock de Supabase
         if (newStatus === 'Cancelado' && order.status !== 'Cancelado') {
             for (const item of order.materials) {
                 const materialInfo = materialsCatalog.find(m => m.name === item.name);
                 if (materialInfo) {
+                    // Devolvemos la cantidad al inventario usando la operación 'add'
                     await updateMaterialStock(materialInfo.id, item.quantity, 'add');
                 }
             }
@@ -144,7 +141,7 @@ export default function OrderList() {
             throw error;
         });
 
-        // Notificación al usuario
+        // Notificación al usuario en Firestore
         const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
         addDoc(notificationRef, {
           userId: order.userId,
@@ -157,7 +154,7 @@ export default function OrderList() {
         setOrders(prev => prev.map(o => o.id === order.id ? {...o, status: newStatus, deliveryConfirmation: deliveryData || o.deliveryConfirmation } : o));
         toast({ title: "Estado Actualizado", description: `Pedido marcado como ${newStatus}.` });
     } catch (e) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el estado." });
+        toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el estado del pedido." });
     }
   }
 
@@ -170,9 +167,9 @@ export default function OrderList() {
             throw error;
         });
         setOrders(prev => prev.filter(o => o.id !== order.id));
-        toast({ title: "Pedido Eliminado", description: "El registro ha sido borrado." });
+        toast({ title: "Pedido Eliminado", description: "El registro ha sido borrado del sistema." });
     } catch(e) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar." });
+        toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." });
     } finally {
       setIsDeleting(false);
     }
@@ -236,7 +233,7 @@ export default function OrderList() {
                     <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
                 )}
                 {error && (
-                    <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error de permisos. Verifica las reglas de Firestore.</span></div></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos. Verifica los permisos de Firestore.</span></div></TableCell></TableRow>
                 )}
                 {!isLoading && !error && orders?.map((order) => {
                   const isFinalState = order.status === 'Entregado' || order.status === 'Cancelado';
