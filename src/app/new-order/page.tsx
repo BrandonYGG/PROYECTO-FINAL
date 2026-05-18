@@ -70,6 +70,7 @@ export default function NewOrderPage() {
   const { toast } = useToast();
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
@@ -95,6 +96,7 @@ export default function NewOrderPage() {
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "materials" });
 
   useEffect(() => {
+    setMounted(true);
     getMaterials().then(m => {
         setMaterialsList(m);
         setIsMaterialsLoading(false);
@@ -160,6 +162,14 @@ export default function NewOrderPage() {
     } finally {
         setIsProcessing(false);
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
@@ -277,6 +287,7 @@ export default function NewOrderPage() {
                             <FormControl>
                                 <Input 
                                   type="number" 
+                                  step="1"
                                   {...field} 
                                   className="h-10" 
                                   onChange={(e) => {

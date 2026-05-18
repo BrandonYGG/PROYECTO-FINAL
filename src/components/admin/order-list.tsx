@@ -106,6 +106,7 @@ export default function OrderList() {
   }, [firestore]);
 
   const handleStatusChange = async (order: any, newStatus: OrderStatus, deliveryData?: any) => {
+    if (!firestore) return;
     const orderDocRef = doc(firestore, 'users', order.userId, 'orders', order.id);
     try {
         const updateData: any = { status: newStatus };
@@ -147,6 +148,7 @@ export default function OrderList() {
   }
 
   const handleDeleteOrder = async (order: any) => {
+    if (!firestore) return;
     setIsDeleting(true);
     const orderDocRef = doc(firestore, 'users', order.userId, 'orders', order.id);
     try {
