@@ -1,9 +1,9 @@
 'use client';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collectionGroup, query, doc, updateDoc, deleteDoc, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Loader2, AlertTriangle, ShoppingCart, MoreHorizontal, Truck, Package, XCircle, Trash2, Eye, FileDown, MapPin, Edit, DownloadCloud } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Loader2, AlertTriangle, ShoppingCart, MoreHorizontal, Truck, Package, XCircle, Trash2, Eye, FileDown, Edit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,16 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from '../ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
@@ -41,7 +31,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Separator } from '../ui/separator';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import SignaturePad from './signature-pad';
 import { getMaterials, updateMaterialStock, type Material } from '@/lib/materials';
 
@@ -121,12 +111,11 @@ export default function OrderList() {
         const updateData: any = { status: newStatus };
         if (deliveryData) updateData.deliveryConfirmation = deliveryData;
 
-        // CRÍTICO: Si se cancela, devolver materiales al stock de Supabase
+        // RESTAURAR STOCK SI SE CANCELA
         if (newStatus === 'Cancelado' && order.status !== 'Cancelado') {
             for (const item of order.materials) {
                 const materialInfo = materialsCatalog.find(m => m.name === item.name);
                 if (materialInfo) {
-                    // Devolvemos la cantidad al inventario usando la operación 'add'
                     await updateMaterialStock(materialInfo.id, item.quantity, 'add');
                 }
             }
@@ -141,7 +130,6 @@ export default function OrderList() {
             throw error;
         });
 
-        // Notificación al usuario en Firestore
         const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
         addDoc(notificationRef, {
           userId: order.userId,
@@ -233,7 +221,7 @@ export default function OrderList() {
                     <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
                 )}
                 {error && (
-                    <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos. Verifica los permisos de Firestore.</span></div></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos.</span></div></TableCell></TableRow>
                 )}
                 {!isLoading && !error && orders?.map((order) => {
                   const isFinalState = order.status === 'Entregado' || order.status === 'Cancelado';

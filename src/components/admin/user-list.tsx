@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 export default function UserList() {
   const firestore = useFirestore();
   
-  // Filtro de seguridad aplicado en la consulta
   const usersQuery = useMemoFirebase(() => {
     return query(
       collection(firestore, 'users'), 
@@ -51,7 +50,7 @@ export default function UserList() {
                   <TableCell colSpan={4} className="text-center h-24 text-destructive">
                     <div className="flex items-center justify-center gap-2">
                       <AlertTriangle className="h-5 w-5"/>
-                      <span>Error de permisos al cargar usuarios.</span>
+                      <span>Error al cargar usuarios.</span>
                     </div>
                   </TableCell>
                 </TableRow>

@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { mexicoStates, State } from '@/lib/mexico-states';
 import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, ImageIcon, FolderTree } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -22,16 +22,14 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { getMaterials, updateMaterialStock, type Material } from "@/lib/materials";
-import Image from "next/image";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
-  quantity: z.coerce.number().min(0.01, { message: "La cantidad debe ser mayor a 0." }),
+  quantity: z.coerce.number().int({ message: "La cantidad debe ser un número entero." }).min(1, { message: "La cantidad debe ser al menos 1." }),
 });
 
 const orderSchema = z.object({
@@ -71,8 +69,6 @@ export default function NewOrderPage() {
   const { user } = useUser();
   const { toast } = useToast();
   const [selectedState, setSelectedState] = useState<State | null>(null);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
@@ -278,7 +274,17 @@ export default function NewOrderPage() {
                       <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
                           <FormItem className="md:col-span-3">
                             <FormLabel className="text-xs">Cantidad (Stock: {selectedMaterial?.stock || 0})</FormLabel>
-                            <FormControl><Input type="number" step="0.01" {...field} className="h-10" /></FormControl>
+                            <FormControl>
+                                <Input 
+                                  type="number" 
+                                  {...field} 
+                                  className="h-10" 
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    field.onChange(val === '' ? '' : parseInt(val, 10));
+                                  }}
+                                />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
