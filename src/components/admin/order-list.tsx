@@ -1,6 +1,6 @@
 'use client';
 import { useFirestore } from '@/firebase';
-import { collectionGroup, query, doc, updateDoc, deleteDoc, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collectionGroup, collection, query, doc, updateDoc, deleteDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, AlertTriangle, ShoppingCart, MoreHorizontal, Truck, Package, XCircle, Trash2, Eye, FileDown, Edit } from 'lucide-react';
@@ -24,7 +24,6 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -69,46 +68,55 @@ export default function OrderList() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  const fetchAllOrders = async () => {
+    if (!firestore) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const materialsData = await getMaterials();
+      setMaterialsCatalog(materialsData);
+
+      const ordersQuery = query(collectionGroup(firestore, 'orders'));
+      const ordersSnapshot = await getDocs(ordersQuery).catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+              path: '*/orders/*',
+              operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          throw serverError;
+      });
+
+      const allOrders = ordersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          path: doc.ref.path
+      }));
+      
+      setOrders(allOrders);
+    } catch (e: any) {
+      console.error("Error fetching all orders:", e);
+      setError(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAllOrders = async () => {
-      if (!firestore) return;
-      setIsLoading(true);
-      setError(null);
-      try {
-        const materialsData = await getMaterials();
-        setMaterialsCatalog(materialsData);
-
-        const ordersQuery = query(collectionGroup(firestore, 'orders'), orderBy('createdAt', 'desc'));
-        const ordersSnapshot = await getDocs(ordersQuery).catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-                path: '*/orders/*',
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            throw serverError;
-        });
-
-        const allOrders = ordersSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        
-        setOrders(allOrders);
-      } catch (e: any) {
-        console.error("Error fetching all orders:", e);
-        setError(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchAllOrders();
   }, [firestore]);
 
   const handleStatusChange = async (order: any, newStatus: OrderStatus, deliveryData?: any) => {
     if (!firestore) return;
+    
+    if (!order.userId) {
+        toast({ variant: "destructive", title: "Error", description: "ID de usuario no encontrado en el pedido." });
+        return;
+    }
+
     const orderDocRef = doc(firestore, 'users', order.userId, 'orders', order.id);
+    
     try {
         const updateData: any = { status: newStatus };
         if (deliveryData) updateData.deliveryConfirmation = deliveryData;
@@ -119,6 +127,8 @@ export default function OrderList() {
                 const materialInfo = materialsCatalog.find(m => m.name === item.name);
                 if (materialInfo) {
                     await updateMaterialStock(materialInfo.id, item.quantity, 'add');
+                } else {
+                    console.warn(`No se pudo encontrar el material "${item.name}" para devolver el stock.`);
                 }
             }
         }
@@ -132,6 +142,7 @@ export default function OrderList() {
             throw error;
         });
 
+        // ✅ CORREGIDO: collection ahora está importado correctamente
         const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
         addDoc(notificationRef, {
           userId: order.userId,
@@ -150,7 +161,9 @@ export default function OrderList() {
   }
 
   const handleDeleteOrder = async (order: any) => {
-    if (!firestore) return;
+    if (!firestore || !order.userId) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar este registro permanentemente?")) return;
+
     setIsDeleting(true);
     const orderDocRef = doc(firestore, 'users', order.userId, 'orders', order.id);
     try {
@@ -182,19 +195,38 @@ export default function OrderList() {
         const docPdf = new jsPDF();
         docPdf.setFontSize(18);
         docPdf.text('Tlapaleria los Pinos - Ticket de Pedido', 105, 20, { align: 'center' });
+        
+        docPdf.setFontSize(10);
+        docPdf.text(`Fecha: ${selectedOrder.createdAt ? format(selectedOrder.createdAt.toDate(), 'PPP', { locale: es }) : 'N/A'}`, 14, 30);
+        
         docPdf.autoTable({
-            startY: 30,
+            startY: 40,
             body: [
                 ['Folio:', selectedOrder.id],
                 ['Obra:', selectedOrder.projectName],
                 ['Cliente:', selectedOrder.requesterName],
+                ['Dirección:', `${selectedOrder.street} ${selectedOrder.number}, ${selectedOrder.colony}`],
                 ['Total:', `$${selectedOrder.total.toFixed(2)} MXN`]
             ],
             theme: 'plain'
         });
-        docPdf.save(`pedido-${selectedOrder.id}.pdf`);
+
+        const tableColumn = ["Material", "Cantidad", "Unitario", "Subtotal"];
+        const tableRows = selectedOrder.materials.map((m: any) => {
+            const price = materialsCatalog.find(cat => cat.name === m.name)?.price || 0;
+            return [m.name, m.quantity, `$${price.toFixed(2)}`, `$${(m.quantity * price).toFixed(2)}` ];
+        });
+
+        docPdf.autoTable({
+            startY: (docPdf as any).lastAutoTable.finalY + 10,
+            head: [tableColumn],
+            body: tableRows,
+        });
+
+        docPdf.save(`ticket-pedido-${selectedOrder.projectName.replace(/\s+/g, '-')}.pdf`);
     } catch (error) {
       console.error("Error PDF:", error);
+      toast({ variant: "destructive", title: "Error", description: "No se pudo generar el PDF." });
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -207,7 +239,6 @@ export default function OrderList() {
         <CardDescription>Visualiza y gestiona todos los pedidos de la plataforma.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Dialog>
             <Table>
             <TableHeader>
                 <TableRow>
@@ -225,7 +256,7 @@ export default function OrderList() {
                     <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
                 )}
                 {error && (
-                    <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos.</span></div></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos. Reintenta.</span></div></TableCell></TableRow>
                 )}
                 {!isLoading && !error && orders?.map((order) => {
                   const isFinalState = order.status === 'Entregado' || order.status === 'Cancelado';
@@ -242,13 +273,13 @@ export default function OrderList() {
                             <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                <DialogTrigger asChild><DropdownMenuItem onSelect={() => setSelectedOrder(order)}><Eye className="mr-2 h-4 w-4" />Ver Resumen</DropdownMenuItem></DialogTrigger>
+                                <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsDetailsModalOpen(true); }}><Eye className="mr-2 h-4 w-4" />Ver Resumen</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsSignatureModalOpen(true); }} disabled={isFinalState || !!order.deliveryConfirmation}><Edit className="mr-2 h-4 w-4" />Confirmar Entrega</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleStatusChange(order, 'En proceso')} disabled={isFinalState || order.status === 'En proceso'}><Package className="mr-2 h-4 w-4" />Procesar</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(order, 'Enviado')} disabled={isFinalState || order.status === 'Enviado'}><Truck className="mr-2 h-4 w-4" />Enviar</DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-amber-600" onClick={() => handleStatusChange(order, 'Cancelado')} disabled={isFinalState}><XCircle className="mr-2 h-4 w-4" />Cancelar (Devolver Stock)</DropdownMenuItem>
+                                <DropdownMenuItem className="text-amber-600" onClick={() => handleStatusChange(order, 'Cancelado')} disabled={isFinalState}><XCircle className="mr-2 h-4 w-4" />Cancelar (Reestablecer Stock)</DropdownMenuItem>
                                 <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteOrder(order)} disabled={isDeleting}><Trash2 className="mr-2 h-4 w-4" />Eliminar Registro</DropdownMenuItem>
                             </DropdownMenuContent>
                             </DropdownMenu>
@@ -256,46 +287,60 @@ export default function OrderList() {
                     </TableRow>
                   );
                 })}
+                {!isLoading && !error && orders?.length === 0 && (
+                     <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">No se encontraron pedidos registrados.</TableCell></TableRow>
+                )}
             </TableBody>
             </Table>
 
-            <DialogContent className="max-w-3xl">
-                {selectedOrder && (
-                    <>
-                        <DialogHeader>
-                            <DialogTitle>Pedido: {selectedOrder.projectName}</DialogTitle>
-                            <DialogDescription>Detalles de materiales y entrega.</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><p className="font-bold text-muted-foreground">CLIENTE</p><p>{selectedOrder.requesterName}</p></div>
-                                <div><p className="font-bold text-muted-foreground">OBRA</p><p>{selectedOrder.projectName}</p></div>
+            {/* Modal de Detalles */}
+            <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+                <DialogContent className="max-w-3xl">
+                    {selectedOrder && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Detalles del Pedido: {selectedOrder.projectName}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div><p className="font-bold text-muted-foreground uppercase text-xs">Solicitante</p><p>{selectedOrder.requesterName}</p></div>
+                                    <div><p className="font-bold text-muted-foreground uppercase text-xs">Teléfono</p><p>{selectedOrder.phone}</p></div>
+                                    <div className="col-span-2"><p className="font-bold text-muted-foreground uppercase text-xs">Dirección</p><p>{selectedOrder.street} {selectedOrder.number}, {selectedOrder.colony}, {selectedOrder.municipality}</p></div>
+                                </div>
+                                <Separator />
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Material</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {selectedOrder.materials.map((m: any, i: number) => {
+                                            const unitPrice = materialsCatalog.find(cat => cat.name === m.name)?.price || 0;
+                                            return (
+                                                <TableRow key={i}>
+                                                    <TableCell>{m.name}</TableCell>
+                                                    <TableCell className="text-center">{m.quantity}</TableCell>
+                                                    <TableCell className="text-right">${(m.quantity * unitPrice).toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                                <div className="text-right font-bold text-lg">Total: ${selectedOrder.total.toFixed(2)} MXN</div>
                             </div>
-                            <Separator />
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Material</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {selectedOrder.materials.map((m: any, i: number) => (
-                                        <TableRow key={i}><TableCell>{m.name}</TableCell><TableCell className="text-center">{m.quantity}</TableCell><TableCell className="text-right">${(m.quantity * (materialsCatalog.find(cat => cat.name === m.name)?.price || 0)).toFixed(2)}</TableCell></TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={generateOrderPdf} disabled={isGeneratingPdf}>{isGeneratingPdf ? <Loader2 className="animate-spin h-4 w-4" /> : <FileDown className="mr-2 h-4 w-4" />} Descargar Ticket</Button>
-                            <DialogClose asChild><Button variant="outline">Cerrar</Button></DialogClose>
-                        </DialogFooter>
-                    </>
-                )}
-            </DialogContent>
-        </Dialog>
-        
-        <Dialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
-            <DialogContent className="max-w-xl">
-                <DialogHeader><DialogTitle>Confirmación de Entrega</DialogTitle></DialogHeader>
-                <div className='py-4'><SignaturePad onSave={handleSaveSignature} /></div>
-            </DialogContent>
-        </Dialog>
+                            <DialogFooter>
+                                <Button onClick={generateOrderPdf} disabled={isGeneratingPdf}>{isGeneratingPdf ? <Loader2 className="animate-spin h-4 w-4" /> : <FileDown className="mr-2 h-4 w-4" />} Descargar Ticket</Button>
+                                <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Cerrar</Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+            
+            {/* Modal de Firma */}
+            <Dialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader><DialogTitle>Confirmación de Entrega - Firma del Cliente</DialogTitle></DialogHeader>
+                    <div className='py-4'><SignaturePad onSave={handleSaveSignature} /></div>
+                </DialogContent>
+            </Dialog>
       </CardContent>
     </Card>
   );
