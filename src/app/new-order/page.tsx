@@ -28,6 +28,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Image from "next/image";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -63,6 +64,26 @@ function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     if (diffDays <= 3) return 'Urgente';
     if (diffDays <= 7) return 'Pronto';
     return 'Normal';
+}
+
+// Componente para imagen de material con fallback
+function MaterialImage({ src, alt, className }: { src: string | null | undefined, alt: string, className?: string }) {
+  const [error, setError] = useState(false);
+  if (!src || error) {
+    return (
+      <div className={cn("bg-muted flex items-center justify-center text-muted-foreground text-xs rounded", className)}>
+        📦
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={cn("object-cover rounded", className)}
+      onError={() => setError(true)}
+    />
+  );
 }
 
 export default function NewOrderPage() {
@@ -278,8 +299,18 @@ export default function NewOrderPage() {
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button variant="outline" className={cn("w-full h-12 justify-between font-normal bg-card", !field.value && "text-muted-foreground")}>
-                                    <span className="truncate">{field.value || "Selecciona material..."}</span>
-                                    <Search className="ml-2 h-4 w-4 opacity-50" />
+                                    {/* ✅ IMAGEN EN EL BOTÓN DESPUÉS DE SELECCIONAR */}
+                                    <span className="flex items-center gap-2 truncate">
+                                      {selectedMaterial && (
+                                        <MaterialImage
+                                          src={selectedMaterial.imageUrl}
+                                          alt={selectedMaterial.name}
+                                          className="w-7 h-7 flex-shrink-0"
+                                        />
+                                      )}
+                                      <span className="truncate">{field.value || "Selecciona material..."}</span>
+                                    </span>
+                                    <Search className="ml-2 h-4 w-4 opacity-50 flex-shrink-0" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -290,7 +321,13 @@ export default function NewOrderPage() {
                                     <div className="p-2 space-y-1">
                                       {filteredMaterials.map(m => (
                                         <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
+                                          {/* ✅ IMAGEN EN LA LISTA DE BÚSQUEDA */}
                                           <div className="flex items-center gap-3 w-full text-left">
+                                            <MaterialImage
+                                              src={m.imageUrl}
+                                              alt={m.name}
+                                              className="w-10 h-10 flex-shrink-0"
+                                            />
                                             <div className="flex flex-col truncate flex-1">
                                               <span className="font-bold truncate">{m.name}</span>
                                               <span className="text-[10px] opacity-70 truncate">{String(m.family)} &gt; {String(m.subfamily)}</span>
@@ -309,8 +346,18 @@ export default function NewOrderPage() {
                                             {Object.entries(subfamilies).map(([subfamily, items]) => (
                                               <div key={subfamily} className="py-2">
                                                 <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">{subfamily}</p>
+                                                {/* ✅ IMAGEN EN LA LISTA JERÁRQUICA */}
                                                 {items.map(m => (
-                                                  <Button key={m.id} variant="ghost" className="w-full justify-start text-xs py-1 h-auto" onClick={() => field.onChange(m.name)}>{m.name}</Button>
+                                                  <Button key={m.id} variant="ghost" className="w-full justify-start text-xs py-1 h-auto" onClick={() => field.onChange(m.name)}>
+                                                    <div className="flex items-center gap-2 w-full text-left">
+                                                      <MaterialImage
+                                                        src={m.imageUrl}
+                                                        alt={m.name}
+                                                        className="w-8 h-8 flex-shrink-0"
+                                                      />
+                                                      <span className="truncate">{m.name}</span>
+                                                    </div>
+                                                  </Button>
                                                 ))}
                                               </div>
                                             ))}
@@ -326,9 +373,19 @@ export default function NewOrderPage() {
                           </FormItem>
                         )} />
 
+                      {/* ✅ IMAGEN + PRECIO EN EL RESUMEN */}
                       <div className="md:col-span-2">
                           <Label className="text-xs">Precio Unit.</Label>
-                          <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}`: '-'} className="bg-muted text-xs h-10" />
+                          <div className="flex items-center gap-2 mt-1">
+                            {selectedMaterial && (
+                              <MaterialImage
+                                src={selectedMaterial.imageUrl}
+                                alt={selectedMaterial.name}
+                                className="w-9 h-9 flex-shrink-0 border rounded"
+                              />
+                            )}
+                            <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}` : '-'} className="bg-muted text-xs h-9" />
+                          </div>
                       </div>
 
                       <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
