@@ -108,7 +108,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                             <Button asChild variant="outline" className="w-full">
-                                <Link href="https://console.firebase.google.com/project/studio-4187163081-396f3" target="_blank" rel="noopener noreferrer">
+                                <Link href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`} target="_blank" rel="noopener noreferrer">
                                     <Database className="mr-2 h-4 w-4" />
                                     Consola de Firebase
                                 </Link>
