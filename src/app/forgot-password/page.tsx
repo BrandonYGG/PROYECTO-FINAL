@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
         <CardContent>
           <ForgotPasswordForm />
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            ¿Recordaste tu contraseña?{' '}
+            ¿Reestableciste tu contraseña?{' '}
             <Link href="/login" className="font-semibold text-primary hover:underline">
               Iniciar Sesión
             </Link>
