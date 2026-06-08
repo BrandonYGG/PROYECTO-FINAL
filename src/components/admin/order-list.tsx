@@ -3,7 +3,7 @@ import { useFirestore } from '@/firebase';
 import { collectionGroup, collection, query, doc, updateDoc, deleteDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, AlertTriangle, ShoppingCart, MoreHorizontal, Truck, Package, XCircle, Trash2, Eye, FileDown, Edit, Search, Filter, X } from 'lucide-react';
+import { Loader2, AlertTriangle, ShoppingCart, MoreHorizontal, Truck, Package, XCircle, Trash2, Eye, FileDown, Edit, Search, Filter, X, CheckCircle, BanknoteIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -41,7 +41,7 @@ declare module 'jspdf' {
   }
 }
 
-type OrderStatus = 'Pendiente' | 'En proceso' | 'Enviado' | 'Entregado' | 'Cancelado';
+type OrderStatus = 'Pendiente de pago' | 'Pendiente' | 'En proceso' | 'Enviado' | 'Entregado' | 'Cancelado';
 type OrderPriority = 'Urgente' | 'Pronto' | 'Normal';
 
 const priorityStyles: {[key: string]: string} = {
@@ -50,7 +50,8 @@ const priorityStyles: {[key: string]: string} = {
     'Normal': 'bg-blue-500 hover:bg-blue-500/80',
 }
 
-const statusStyles: {[key in OrderStatus]: string} = {
+const statusStyles: {[key: string]: string} = {
+    'Pendiente de pago': 'border-orange-500/50 text-orange-500',
     'Pendiente': 'border-gray-500/50 text-gray-500',
     'En proceso': 'border-blue-500/50 text-blue-500',
     'Enviado': 'border-purple-500/50 text-purple-500',
@@ -58,8 +59,13 @@ const statusStyles: {[key in OrderStatus]: string} = {
     'Cancelado': 'border-red-500/50 text-red-500 line-through',
 }
 
-const ALL_STATUSES: OrderStatus[] = ['Pendiente', 'En proceso', 'Enviado', 'Entregado', 'Cancelado'];
+const ALL_STATUSES = ['Pendiente de pago', 'Pendiente', 'En proceso', 'Enviado', 'Entregado', 'Cancelado'];
 const ALL_PRIORITIES: OrderPriority[] = ['Urgente', 'Pronto', 'Normal'];
+
+const paymentMethodLabel: {[key: string]: string} = {
+  'transferencia': 'Transferencia bancaria',
+  'oxxo': 'Depósito OXXO',
+};
 
 export default function OrderList() {
   const firestore = useFirestore();
@@ -75,6 +81,9 @@ export default function OrderList() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<any>(null);
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
+  const [isPaymentConfirmModalOpen, setIsPaymentConfirmModalOpen] = useState(false);
+  const [paymentAction, setPaymentAction] = useState<'confirm' | 'reject' | null>(null);
 
   // --- FILTROS ---
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,23 +100,19 @@ export default function OrderList() {
 
       const ordersQuery = query(collectionGroup(firestore, 'orders'));
       const ordersSnapshot = await getDocs(ordersQuery).catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: '*/orders/*',
-              operation: 'list',
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw serverError;
+        const permissionError = new FirestorePermissionError({ path: '*/orders/*', operation: 'list' });
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
       });
 
       const allOrders = ordersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          path: doc.ref.path
+        id: doc.id,
+        ...doc.data(),
+        path: doc.ref.path
       }));
-      
+
       setOrders(allOrders);
     } catch (e: any) {
-      console.error("Error fetching all orders:", e);
       setError(e);
     } finally {
       setIsLoading(false);
@@ -118,29 +123,25 @@ export default function OrderList() {
     fetchAllOrders();
   }, [firestore]);
 
-  // --- TOTALES PARA EL DASHBOARD ---
-  const totals = useMemo(() => {
-    return {
-      total: orders.length,
-      pendiente: orders.filter(o => o.status === 'Pendiente').length,
-      enProceso: orders.filter(o => o.status === 'En proceso').length,
-      enviado: orders.filter(o => o.status === 'Enviado').length,
-      entregado: orders.filter(o => o.status === 'Entregado').length,
-      cancelado: orders.filter(o => o.status === 'Cancelado').length,
-    };
-  }, [orders]);
+  // --- TOTALES ---
+  const totals = useMemo(() => ({
+    total: orders.length,
+    pendientePago: orders.filter(o => o.status === 'Pendiente de pago').length,
+    pendiente: orders.filter(o => o.status === 'Pendiente').length,
+    enProceso: orders.filter(o => o.status === 'En proceso').length,
+    enviado: orders.filter(o => o.status === 'Enviado').length,
+    entregado: orders.filter(o => o.status === 'Entregado').length,
+    cancelado: orders.filter(o => o.status === 'Cancelado').length,
+  }), [orders]);
 
-  // --- PEDIDOS FILTRADOS ---
+  // --- FILTROS ---
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      const matchesSearch =
-        searchTerm === '' ||
+      const matchesSearch = searchTerm === '' ||
         order.requesterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.projectName?.toLowerCase().includes(searchTerm.toLowerCase());
-
       const matchesStatus = filterStatus === 'todos' || order.status === filterStatus;
       const matchesPriority = filterPriority === 'todas' || order.priority === filterPriority;
-
       return matchesSearch && matchesStatus && matchesPriority;
     });
   }, [orders, searchTerm, filterStatus, filterPriority]);
@@ -153,125 +154,164 @@ export default function OrderList() {
     setFilterPriority('todas');
   };
 
-  const handleStatusChange = async (order: any, newStatus: OrderStatus, deliveryData?: any) => {
-    if (!firestore) return;
-    
-    if (!order.userId) {
-        toast({ variant: "destructive", title: "Error", description: "ID de usuario no encontrado en el pedido." });
-        return;
-    }
-
+  const handleStatusChange = async (order: any, newStatus: string, deliveryData?: any) => {
+    if (!firestore || !order.userId) return;
     const orderDocRef = doc(firestore, 'users', order.userId, 'orders', order.id);
-    
+
     try {
-        const updateData: any = { status: newStatus };
-        if (deliveryData) updateData.deliveryConfirmation = deliveryData;
+      const updateData: any = { status: newStatus };
+      if (deliveryData) updateData.deliveryConfirmation = deliveryData;
 
-        if (newStatus === 'Cancelado' && order.status !== 'Cancelado') {
-            for (const item of order.materials) {
-                const materialInfo = materialsCatalog.find(m => m.name === item.name);
-                if (materialInfo) {
-                    await updateMaterialStock(materialInfo.id, item.quantity, 'add');
-                } else {
-                    console.warn(`No se pudo encontrar el material "${item.name}" para devolver el stock.`);
-                }
-            }
+      if (newStatus === 'Cancelado' && order.status !== 'Cancelado' && order.status !== 'Pendiente de pago') {
+        for (const item of order.materials) {
+          const materialInfo = materialsCatalog.find(m => m.name === item.name);
+          if (materialInfo) await updateMaterialStock(materialInfo.id, item.quantity, 'add');
         }
+      }
 
-        await updateDoc(orderDocRef, updateData).catch(error => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: orderDocRef.path,
-                operation: 'update',
-                requestResourceData: updateData
-            }));
-            throw error;
-        });
+      await updateDoc(orderDocRef, updateData).catch(error => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderDocRef.path, operation: 'update', requestResourceData: updateData }));
+        throw error;
+      });
 
-        const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
-        addDoc(notificationRef, {
-          userId: order.userId,
-          orderId: order.id,
-          message: `El estado de tu pedido "${order.projectName}" ha cambiado a: ${newStatus}.`,
-          read: false,
-          createdAt: serverTimestamp(),
-        });
+      const notificationRef = collection(firestore, 'users', order.userId, 'notifications');
+      addDoc(notificationRef, {
+        userId: order.userId,
+        orderId: order.id,
+        message: `El estado de tu pedido "${order.projectName}" ha cambiado a: ${newStatus}.`,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
 
-        setOrders(prev => prev.map(o => o.id === order.id ? {...o, status: newStatus, deliveryConfirmation: deliveryData || o.deliveryConfirmation } : o));
-        toast({ title: "Estado Actualizado", description: `Pedido marcado como ${newStatus}.` });
+      setOrders(prev => prev.map(o => o.id === order.id ? {...o, status: newStatus, deliveryConfirmation: deliveryData || o.deliveryConfirmation} : o));
+      toast({ title: "Estado Actualizado", description: `Pedido marcado como ${newStatus}.` });
     } catch (e) {
-        console.error("Error updating status:", e);
-        toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el estado del pedido." });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el estado." });
     }
-  }
+  };
+
+  // ✅ Confirmar pago — descuenta stock y pasa a Pendiente
+  const handleConfirmPayment = async () => {
+    if (!selectedOrder || !firestore) return;
+    setIsConfirmingPayment(true);
+    try {
+      const orderDocRef = doc(firestore, 'users', selectedOrder.userId, 'orders', selectedOrder.id);
+      await updateDoc(orderDocRef, { status: 'Pendiente', paymentConfirmed: true });
+
+      // Descontar stock ahora que el pago fue confirmado
+      for (const item of selectedOrder.materials) {
+        const materialInfo = materialsCatalog.find(m => m.name === item.name);
+        if (materialInfo) await updateMaterialStock(materialInfo.id, item.quantity, 'subtract');
+      }
+
+      const notificationRef = collection(firestore, 'users', selectedOrder.userId, 'notifications');
+      addDoc(notificationRef, {
+        userId: selectedOrder.userId,
+        orderId: selectedOrder.id,
+        message: `¡Tu pago para el pedido "${selectedOrder.projectName}" fue confirmado! Tu pedido está siendo procesado.`,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? {...o, status: 'Pendiente', paymentConfirmed: true} : o));
+      setIsPaymentConfirmModalOpen(false);
+      toast({ title: "Pago confirmado ✅", description: "El stock fue descontado y el pedido pasó a Pendiente." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    } finally {
+      setIsConfirmingPayment(false);
+    }
+  };
+
+  // ✅ Rechazar pago — cancela el pedido sin descontar stock
+  const handleRejectPayment = async () => {
+    if (!selectedOrder || !firestore) return;
+    setIsConfirmingPayment(true);
+    try {
+      const orderDocRef = doc(firestore, 'users', selectedOrder.userId, 'orders', selectedOrder.id);
+      await updateDoc(orderDocRef, { status: 'Cancelado', paymentRejected: true });
+
+      const notificationRef = collection(firestore, 'users', selectedOrder.userId, 'notifications');
+      addDoc(notificationRef, {
+        userId: selectedOrder.userId,
+        orderId: selectedOrder.id,
+        message: `Tu pago para el pedido "${selectedOrder.projectName}" fue rechazado. Contáctanos para más información.`,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? {...o, status: 'Cancelado'} : o));
+      setIsPaymentConfirmModalOpen(false);
+      toast({ title: "Pago rechazado", description: "El pedido fue cancelado sin descontar stock." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    } finally {
+      setIsConfirmingPayment(false);
+    }
+  };
 
   const confirmDeleteOrder = (order: any) => {
     setOrderToDelete(order);
     setIsDeleteModalOpen(true);
-  }
+  };
 
   const handleDeleteOrder = async () => {
     const order = orderToDelete;
     if (!firestore || !order?.userId) return;
-
     setIsDeleting(true);
     const orderDocRef = doc(firestore, 'users', order.userId, 'orders', order.id);
     try {
-        await deleteDoc(orderDocRef).catch(error => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderDocRef.path, operation: 'delete' }));
-            throw error;
-        });
-        setOrders(prev => prev.filter(o => o.id !== order.id));
-        setIsDeleteModalOpen(false);
-        setOrderToDelete(null);
-        toast({ title: "Pedido Eliminado", description: "El registro ha sido borrado del sistema." });
+      await deleteDoc(orderDocRef).catch(error => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderDocRef.path, operation: 'delete' }));
+        throw error;
+      });
+      setOrders(prev => prev.filter(o => o.id !== order.id));
+      setIsDeleteModalOpen(false);
+      setOrderToDelete(null);
+      toast({ title: "Pedido Eliminado", description: "El registro ha sido borrado del sistema." });
     } catch(e) {
-        toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el registro." });
     } finally {
       setIsDeleting(false);
     }
-  }
+  };
 
   const handleSaveSignature = async (signatureDataUrl: string) => {
     if (!selectedOrder) return;
-    const confirmedAt = new Date();
-    const deliveryData = { signatureDataUrl, confirmedAt: confirmedAt.toISOString() };
+    const deliveryData = { signatureDataUrl, confirmedAt: new Date().toISOString() };
     await handleStatusChange(selectedOrder, 'Entregado', deliveryData);
     setIsSignatureModalOpen(false);
-  }
+  };
 
   const generateOrderPdf = async () => {
     if (!selectedOrder || materialsCatalog.length === 0) return;
     setIsGeneratingPdf(true);
     try {
-        const docPdf = new jsPDF();
-        docPdf.setFontSize(18);
-        docPdf.text('Tlapaleria los Pinos - Ticket de Pedido', 105, 20, { align: 'center' });
-        docPdf.setFontSize(10);
-        docPdf.text(`Fecha: ${selectedOrder.createdAt ? format(selectedOrder.createdAt.toDate(), 'PPP', { locale: es }) : 'N/A'}`, 14, 30);
-        docPdf.autoTable({
-            startY: 40,
-            body: [
-                ['Folio:', selectedOrder.id],
-                ['Obra:', selectedOrder.projectName],
-                ['Cliente:', selectedOrder.requesterName],
-                ['Dirección:', `${selectedOrder.street} ${selectedOrder.number}, ${selectedOrder.colony}`],
-                ['Total:', `$${selectedOrder.total.toFixed(2)} MXN`]
-            ],
-            theme: 'plain'
-        });
-        const tableColumn = ["Material", "Cantidad", "Unitario", "Subtotal"];
-        const tableRows = selectedOrder.materials.map((m: any) => {
-            const price = materialsCatalog.find(cat => cat.name === m.name)?.price || 0;
-            return [m.name, m.quantity, `$${price.toFixed(2)}`, `$${(m.quantity * price).toFixed(2)}`];
-        });
-        docPdf.autoTable({
-            startY: (docPdf as any).lastAutoTable.finalY + 10,
-            head: [tableColumn],
-            body: tableRows,
-        });
-        docPdf.save(`ticket-pedido-${selectedOrder.projectName.replace(/\s+/g, '-')}.pdf`);
+      const docPdf = new jsPDF();
+      docPdf.setFontSize(18);
+      docPdf.text('Tlapaleria los Pinos - Ticket de Pedido', 105, 20, { align: 'center' });
+      docPdf.setFontSize(10);
+      docPdf.text(`Fecha: ${selectedOrder.createdAt ? format(selectedOrder.createdAt.toDate(), 'PPP', { locale: es }) : 'N/A'}`, 14, 30);
+      docPdf.autoTable({
+        startY: 40,
+        body: [
+          ['Folio:', selectedOrder.id],
+          ['Obra:', selectedOrder.projectName],
+          ['Cliente:', selectedOrder.requesterName],
+          ['Dirección:', `${selectedOrder.street} ${selectedOrder.number}, ${selectedOrder.colony}`],
+          ['Total:', `$${selectedOrder.total.toFixed(2)} MXN`],
+          ['Método de pago:', paymentMethodLabel[selectedOrder.paymentMethod] || 'N/A'],
+        ],
+        theme: 'plain'
+      });
+      const tableColumn = ["Material", "Cantidad", "Unitario", "Subtotal"];
+      const tableRows = selectedOrder.materials.map((m: any) => {
+        const price = materialsCatalog.find(cat => cat.name === m.name)?.price || 0;
+        return [m.name, m.quantity, `$${price.toFixed(2)}`, `$${(m.quantity * price).toFixed(2)}`];
+      });
+      docPdf.autoTable({ startY: (docPdf as any).lastAutoTable.finalY + 10, head: [tableColumn], body: tableRows });
+      docPdf.save(`ticket-pedido-${selectedOrder.projectName.replace(/\s+/g, '-')}.pdf`);
     } catch (error) {
-      console.error("Error PDF:", error);
       toast({ variant: "destructive", title: "Error", description: "No se pudo generar el PDF." });
     } finally {
       setIsGeneratingPdf(false);
@@ -280,11 +320,12 @@ export default function OrderList() {
 
   return (
     <div className="space-y-6">
-      {/* DASHBOARD DE TOTALES */}
+      {/* DASHBOARD */}
       {!isLoading && !error && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           {[
             { label: 'Total', value: totals.total, color: 'bg-card border' },
+            { label: 'Pend. Pago', value: totals.pendientePago, color: 'bg-orange-500/10 border border-orange-500/30' },
             { label: 'Pendientes', value: totals.pendiente, color: 'bg-gray-500/10 border border-gray-500/30' },
             { label: 'En Proceso', value: totals.enProceso, color: 'bg-blue-500/10 border border-blue-500/30' },
             { label: 'Enviados', value: totals.enviado, color: 'bg-purple-500/10 border border-purple-500/30' },
@@ -311,15 +352,10 @@ export default function OrderList() {
           <div className="flex flex-col md:flex-row gap-3 pt-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por cliente u obra..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder="Buscar por cliente u obra..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full md:w-[160px]">
+              <SelectTrigger className="w-full md:w-[180px]">
                 <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
@@ -344,12 +380,8 @@ export default function OrderList() {
               </Button>
             )}
           </div>
-
-          {/* CONTADOR DE RESULTADOS */}
           {hasActiveFilters && (
-            <p className="text-xs text-muted-foreground pt-1">
-              Mostrando {filteredOrders.length} de {orders.length} pedidos
-            </p>
+            <p className="text-xs text-muted-foreground pt-1">Mostrando {filteredOrders.length} de {orders.length} pedidos</p>
           )}
         </CardHeader>
 
@@ -361,6 +393,7 @@ export default function OrderList() {
                 <TableHead>Solicitante</TableHead>
                 <TableHead>Obra</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Pago</TableHead>
                 <TableHead>Prioridad</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className='text-right'>Acciones</TableHead>
@@ -368,21 +401,29 @@ export default function OrderList() {
             </TableHeader>
             <TableBody>
               {isLoading && (
-                <TableRow><TableCell colSpan={7} className="text-center h-24"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center h-24"><Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" /></TableCell></TableRow>
               )}
               {error && (
-                <TableRow><TableCell colSpan={7} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos. Reintenta.</span></div></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center h-24 text-destructive"><div className="flex items-center justify-center gap-2"><AlertTriangle className="h-5 w-5"/><span>Error al cargar pedidos.</span></div></TableCell></TableRow>
               )}
               {!isLoading && !error && filteredOrders.map((order) => {
                 const isFinalState = order.status === 'Entregado' || order.status === 'Cancelado';
+                const isPendingPayment = order.status === 'Pendiente de pago';
                 return (
                   <TableRow key={order.id}>
                     <TableCell>{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yy', { locale: es }) : 'N/A'}</TableCell>
                     <TableCell className="font-medium">{order.requesterName}</TableCell>
                     <TableCell>{order.projectName}</TableCell>
                     <TableCell>${order.total.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {order.paymentMethod ? (
+                        <span className="text-xs text-muted-foreground">{paymentMethodLabel[order.paymentMethod] || order.paymentMethod}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell><Badge className={priorityStyles[order.priority]}>{order.priority}</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className={statusStyles[order.status as OrderStatus]}>{order.status}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className={statusStyles[order.status] || ''}>{order.status}</Badge></TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -391,10 +432,22 @@ export default function OrderList() {
                           <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsDetailsModalOpen(true); }}><Eye className="mr-2 h-4 w-4" />Ver Resumen</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsSignatureModalOpen(true); }} disabled={isFinalState || !!order.deliveryConfirmation}><Edit className="mr-2 h-4 w-4" />Confirmar Entrega</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'En proceso')} disabled={isFinalState || order.status === 'En proceso'}><Package className="mr-2 h-4 w-4" />Procesar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'Enviado')} disabled={isFinalState || order.status === 'Enviado'}><Truck className="mr-2 h-4 w-4" />Enviar</DropdownMenuItem>
+                          {/* ✅ Botones de pago solo para pedidos pendientes de pago */}
+                          {isPendingPayment && (
+                            <>
+                              <DropdownMenuItem className="text-green-600" onSelect={() => { setSelectedOrder(order); setPaymentAction('confirm'); setIsPaymentConfirmModalOpen(true); }}>
+                                <CheckCircle className="mr-2 h-4 w-4" />Confirmar Pago
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-600" onSelect={() => { setSelectedOrder(order); setPaymentAction('reject'); setIsPaymentConfirmModalOpen(true); }}>
+                                <XCircle className="mr-2 h-4 w-4" />Rechazar Pago
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'En proceso')} disabled={isFinalState || isPendingPayment || order.status === 'En proceso'}><Package className="mr-2 h-4 w-4" />Procesar</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'Enviado')} disabled={isFinalState || isPendingPayment || order.status === 'Enviado'}><Truck className="mr-2 h-4 w-4" />Enviar</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-amber-600" onClick={() => handleStatusChange(order, 'Cancelado')} disabled={isFinalState}><XCircle className="mr-2 h-4 w-4" />Cancelar (Reestablecer Stock)</DropdownMenuItem>
+                          <DropdownMenuItem className="text-amber-600" onClick={() => handleStatusChange(order, 'Cancelado')} disabled={isFinalState}><XCircle className="mr-2 h-4 w-4" />Cancelar</DropdownMenuItem>
                           <DropdownMenuItem className="text-red-600" onClick={() => confirmDeleteOrder(order)} disabled={isDeleting}><Trash2 className="mr-2 h-4 w-4" />Eliminar Registro</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -403,28 +456,27 @@ export default function OrderList() {
                 );
               })}
               {!isLoading && !error && filteredOrders.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                    {hasActiveFilters ? 'No hay pedidos que coincidan con los filtros.' : 'No se encontraron pedidos registrados.'}
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                  {hasActiveFilters ? 'No hay pedidos que coincidan con los filtros.' : 'No se encontraron pedidos registrados.'}
+                </TableCell></TableRow>
               )}
             </TableBody>
           </Table>
 
-          {/* Modal de Detalles */}
+          {/* Modal de detalles */}
           <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
             <DialogContent className="max-w-3xl">
               {selectedOrder && (
                 <>
-                  <DialogHeader>
-                    <DialogTitle>Detalles del Pedido: {selectedOrder.projectName}</DialogTitle>
-                  </DialogHeader>
+                  <DialogHeader><DialogTitle>Detalles del Pedido: {selectedOrder.projectName}</DialogTitle></DialogHeader>
                   <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div><p className="font-bold text-muted-foreground uppercase text-xs">Solicitante</p><p>{selectedOrder.requesterName}</p></div>
                       <div><p className="font-bold text-muted-foreground uppercase text-xs">Teléfono</p><p>{selectedOrder.phone}</p></div>
                       <div className="col-span-2"><p className="font-bold text-muted-foreground uppercase text-xs">Dirección</p><p>{selectedOrder.street} {selectedOrder.number}, {selectedOrder.colony}, {selectedOrder.municipality}</p></div>
+                      {selectedOrder.paymentMethod && (
+                        <div><p className="font-bold text-muted-foreground uppercase text-xs">Método de Pago</p><p>{paymentMethodLabel[selectedOrder.paymentMethod] || selectedOrder.paymentMethod}</p></div>
+                      )}
                     </div>
                     <Separator />
                     <Table>
@@ -453,14 +505,50 @@ export default function OrderList() {
             </DialogContent>
           </Dialog>
 
-          {/* Modal de Confirmación de Eliminación */}
+          {/* Modal confirmar/rechazar pago */}
+          <Dialog open={isPaymentConfirmModalOpen} onOpenChange={setIsPaymentConfirmModalOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className={`flex items-center gap-2 ${paymentAction === 'confirm' ? 'text-green-600' : 'text-destructive'}`}>
+                  {paymentAction === 'confirm' ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                  {paymentAction === 'confirm' ? 'Confirmar Pago' : 'Rechazar Pago'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="py-4 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {paymentAction === 'confirm'
+                    ? 'Al confirmar el pago, el stock será descontado y el pedido pasará a estado Pendiente.'
+                    : 'Al rechazar el pago, el pedido será cancelado sin descontar stock.'}
+                </p>
+                {selectedOrder && (
+                  <div className="rounded-lg border p-3 bg-muted/50 space-y-1 text-sm">
+                    <p><span className="font-semibold">Cliente:</span> {selectedOrder.requesterName}</p>
+                    <p><span className="font-semibold">Obra:</span> {selectedOrder.projectName}</p>
+                    <p><span className="font-semibold">Total:</span> ${selectedOrder.total?.toFixed(2)} MXN</p>
+                    <p><span className="font-semibold">Método:</span> {paymentMethodLabel[selectedOrder.paymentMethod] || 'N/A'}</p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPaymentConfirmModalOpen(false)} disabled={isConfirmingPayment}>Cancelar</Button>
+                <Button
+                  variant={paymentAction === 'confirm' ? 'default' : 'destructive'}
+                  onClick={paymentAction === 'confirm' ? handleConfirmPayment : handleRejectPayment}
+                  disabled={isConfirmingPayment}
+                  className={paymentAction === 'confirm' ? 'bg-green-600 hover:bg-green-700' : ''}
+                >
+                  {isConfirmingPayment ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                  {paymentAction === 'confirm' ? 'Confirmar Pago ✅' : 'Rechazar Pago'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal eliminar */}
           <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-destructive">
-                  <Trash2 className="h-5 w-5" />
-                  Eliminar Pedido
-                </DialogTitle>
+                <DialogTitle className="flex items-center gap-2 text-destructive"><Trash2 className="h-5 w-5" />Eliminar Pedido</DialogTitle>
               </DialogHeader>
               <div className="py-4 space-y-2">
                 <p className="text-sm text-muted-foreground">Esta acción es permanente y no se puede deshacer.</p>
@@ -482,7 +570,7 @@ export default function OrderList() {
             </DialogContent>
           </Dialog>
 
-          {/* Modal de Firma */}
+          {/* Modal firma */}
           <Dialog open={isSignatureModalOpen} onOpenChange={setIsSignatureModalOpen}>
             <DialogContent className="max-w-xl">
               <DialogHeader><DialogTitle>Confirmación de Entrega - Firma del Cliente</DialogTitle></DialogHeader>

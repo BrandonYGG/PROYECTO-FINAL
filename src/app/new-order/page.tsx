@@ -18,17 +18,17 @@ import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
-import { getMaterials, updateMaterialStock, type Material } from "@/lib/materials";
+import { getMaterials, type Material } from "@/lib/materials";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import Image from "next/image";
+import PaymentMethodModal from "@/components/profile/payment-method-modal";
 
 const materialOrderSchema = z.object({
   name: z.string().min(1, { message: "Debes seleccionar un material." }),
@@ -66,7 +66,6 @@ function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
     return 'Normal';
 }
 
-// Componente para imagen de material con fallback
 function MaterialImage({ src, alt, className }: { src: string | null | undefined, alt: string, className?: string }) {
   const [error, setError] = useState(false);
   if (!src || error) {
@@ -77,12 +76,7 @@ function MaterialImage({ src, alt, className }: { src: string | null | undefined
     );
   }
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={cn("object-cover rounded", className)}
-      onError={() => setError(true)}
-    />
+    <img src={src} alt={alt} className={cn("object-cover rounded", className)} onError={() => setError(true)} />
   );
 }
 
@@ -95,10 +89,13 @@ export default function NewOrderPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
   const [materialsList, setMaterialsList] = useState<Material[]>([]);
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
+
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -118,28 +115,24 @@ export default function NewOrderPage() {
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "materials" });
-
-  const watchedMaterials = useWatch({
-    control: form.control,
-    name: "materials",
-  });
+  const watchedMaterials = useWatch({ control: form.control, name: "materials" });
 
   useEffect(() => {
     setMounted(true);
     getMaterials().then(m => {
-        setMaterialsList(m);
-        setIsMaterialsLoading(false);
+      setMaterialsList(m);
+      setIsMaterialsLoading(false);
     });
   }, []);
 
   const hierarchicalMaterials = useMemo(() => {
     const hierarchy: Record<string, Record<string, Material[]>> = {};
     materialsList.forEach(m => {
-        const f = String(m.family || 'General');
-        const sf = String(m.subfamily || 'Varios');
-        if (!hierarchy[f]) hierarchy[f] = {};
-        if (!hierarchy[f][sf]) hierarchy[f][sf] = [];
-        hierarchy[f][sf].push(m);
+      const f = String(m.family || 'General');
+      const sf = String(m.subfamily || 'Varios');
+      if (!hierarchy[f]) hierarchy[f] = {};
+      if (!hierarchy[f][sf]) hierarchy[f][sf] = [];
+      hierarchy[f][sf].push(m);
     });
     return hierarchy;
   }, [materialsList]);
@@ -155,69 +148,103 @@ export default function NewOrderPage() {
 
   useEffect(() => {
     if (watchState) {
-        setSelectedState(mexicoStates.find(s => s.nombre === watchState) || null);
+      setSelectedState(mexicoStates.find(s => s.nombre === watchState) || null);
     }
   }, [watchState]);
 
   async function handleInitialSubmit(values: OrderFormData) {
     if (!user || !firestore) return;
     if (total <= 0) {
-        toast({ variant: "destructive", title: "Error en el pedido", description: "Debes seleccionar al menos un material con cantidad válida." });
-        return;
+      toast({ variant: "destructive", title: "Error en el pedido", description: "Debes seleccionar al menos un material con cantidad válida." });
+      return;
     }
 
     setIsProcessing(true);
     try {
       const priority = getPriorityFromDate(values.deliveryDates.from);
-      let location = { lat: 19.4326, lng: -99.1332 }; 
+      let location = { lat: 19.4326, lng: -99.1332 };
       try {
         const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}`;
         const geocoded = await geocodeAddress({ address: fullAddress });
         if (geocoded) location = geocoded;
       } catch (e) { console.warn("Geo fallback"); }
 
-      const orderData = { 
-        ...values, location, total, userId: user.uid, priority, status: 'Pendiente', createdAt: serverTimestamp(),
+      const orderData = {
+        ...values,
+        location,
+        total,
+        userId: user.uid,
+        priority,
+        status: 'Pendiente de pago',
+        paymentMethod: null,
+        createdAt: serverTimestamp(),
       };
 
       const ordersRef = collection(firestore, 'users', user.uid, 'orders');
-      addDoc(ordersRef, orderData).catch(error => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: ordersRef.path,
-              operation: 'create',
-              requestResourceData: orderData
-          }));
-          throw error;
+      const docRef = await addDoc(ordersRef, orderData).catch(error => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: ordersRef.path,
+          operation: 'create',
+          requestResourceData: orderData
+        }));
+        throw error;
       });
 
-      for (const item of values.materials) {
-          const materialInfo = materialsList.find(m => m.name === item.name);
-          if (materialInfo) await updateMaterialStock(materialInfo.id, item.quantity, 'subtract');
-      }
+      setCreatedOrderId(docRef.id);
+      setPendingOrderData({ id: docRef.id, projectName: values.projectName, total, requesterName: values.requesterName });
+      setIsPaymentModalOpen(true);
 
-      toast({ title: "Pedido Enviado", description: "Tu pedido se ha procesado correctamente." });
-      router.push('/profile');
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Error", description: error.message || "Ocurrió un error al procesar el pedido." });
+      toast({ variant: "destructive", title: "Error", description: error.message || "Ocurrió un error al procesar el pedido." });
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   }
 
-  const onInvalid = (errors: any) => {
-      const errorFields = Object.keys(errors).map(key => {
-          if (key === 'deliveryDates') return 'Periodo de Entrega (necesitas inicio y fin)';
-          if (key === 'materials') return 'Materiales';
-          if (key === 'phone') return 'Teléfono (10 dígitos)';
-          if (key === 'colony') return 'Colonia';
-          return key;
-      }).join(", ");
-      
+  const handlePaymentConfirm = async (method: 'transferencia' | 'oxxo') => {
+    if (!createdOrderId || !user) return;
+    try {
+      const orderRef = doc(firestore, 'users', user.uid, 'orders', createdOrderId);
+      await updateDoc(orderRef, { paymentMethod: method });
+
+      setIsPaymentModalOpen(false);
       toast({
-          variant: "destructive",
-          title: "Formulario Incompleto",
-          description: `Por favor revisa los campos: ${errorFields}. Asegúrate de que el total sea mayor a 0.`,
+        title: "¡Pedido registrado!",
+        description: `Tu pedido está reservado. Envía tu comprobante de ${method === 'transferencia' ? 'transferencia' : 'depósito OXXO'} por WhatsApp.`,
       });
+      router.push('/profile');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el método de pago." });
+    }
+  };
+
+  // ✅ Bug #2 fix: si cierra el modal sin confirmar, borrar el pedido huérfano
+  const handlePaymentModalClose = async () => {
+    if (createdOrderId && user) {
+      try {
+        await deleteDoc(doc(firestore, 'users', user.uid, 'orders', createdOrderId));
+      } catch (e) {
+        console.warn('No se pudo borrar el pedido huérfano:', e);
+      }
+    }
+    setIsPaymentModalOpen(false);
+    setCreatedOrderId(null);
+    setPendingOrderData(null);
+  };
+
+  const onInvalid = (errors: any) => {
+    const errorFields = Object.keys(errors).map(key => {
+      if (key === 'deliveryDates') return 'Periodo de Entrega (necesitas inicio y fin)';
+      if (key === 'materials') return 'Materiales';
+      if (key === 'phone') return 'Teléfono (10 dígitos)';
+      if (key === 'colony') return 'Colonia';
+      return key;
+    }).join(", ");
+    toast({
+      variant: "destructive",
+      title: "Formulario Incompleto",
+      description: `Por favor revisa los campos: ${errorFields}. Asegúrate de que el total sea mayor a 0.`,
+    });
   };
 
   if (!mounted) {
@@ -229,84 +256,79 @@ export default function NewOrderPage() {
   }
 
   return (
-    <div className="container mx-auto py-12 px-4 animate-fade-in">
-      <Card className="max-w-4xl mx-auto shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
-          <CardDescription>Selecciona tus materiales y verifica disponibilidad.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleInitialSubmit, onInvalid)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
-                <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Nombre de la Obra</FormLabel><FormControl><Input placeholder="Ej. Casa Bosque" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem className="md:col-span-1">
-                    <FormLabel>Teléfono de Contacto</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="10 dígitos" className="pl-10" {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
+    <>
+      <div className="container mx-auto py-12 px-4 animate-fade-in">
+        <Card className="max-w-4xl mx-auto shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
+            <CardDescription>Selecciona tus materiales y verifica disponibilidad.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleInitialSubmit, onInvalid)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
+                  <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Nombre de la Obra</FormLabel><FormControl><Input placeholder="Ej. Casa Bosque" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="phone" render={({ field }) => (
+                    <FormItem className="md:col-span-1">
+                      <FormLabel>Teléfono de Contacto</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input placeholder="10 dígitos" className="pl-10" {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 border-b pb-6">
-                <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input placeholder="Av. Principal" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N° Exterior</FormLabel><FormControl><Input placeholder="Solo números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="colony" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input placeholder="Ej. Juárez" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                
-                <FormField control={form.control} name="state" render={({ field }) => (
-                  <FormItem><FormLabel>Estado</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
-                      <SelectContent>{mexicoStates.map(s => <SelectItem key={s.nombre} value={s.nombre}>{s.nombre}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="municipality" render={({ field }) => (
-                  <FormItem><FormLabel>Municipio / Delegación</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
-                      <SelectContent>{selectedState?.municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input placeholder="5 dígitos" {...field} maxLength={5} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 border-b pb-6">
+                  <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input placeholder="Av. Principal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N° Exterior</FormLabel><FormControl><Input placeholder="Solo números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="colony" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input placeholder="Ej. Juárez" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="state" render={({ field }) => (
+                    <FormItem><FormLabel>Estado</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
+                        <SelectContent>{mexicoStates.map(s => <SelectItem key={s.nombre} value={s.nombre}>{s.nombre}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="municipality" render={({ field }) => (
+                    <FormItem><FormLabel>Municipio / Delegación</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
+                        <SelectContent>{selectedState?.municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input placeholder="5 dígitos" {...field} maxLength={5} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
+                </div>
 
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold flex items-center gap-2"><FolderTree className="h-5 w-5" /> Selección de Materiales</h3>
-                {fields.map((field, index) => {
-                   const currentFieldValue = watchedMaterials?.[index];
-                   const selectedMaterial = materialsList.find(m => m.name === currentFieldValue?.name);
-                   const searchTerm = searchTerms[index] || "";
-                   const filteredMaterials = materialsList.filter(m => 
-                     m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                     String(m.family).toLowerCase().includes(searchTerm.toLowerCase())
-                   );
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2"><FolderTree className="h-5 w-5" /> Selección de Materiales</h3>
+                  {fields.map((field, index) => {
+                    const currentFieldValue = watchedMaterials?.[index];
+                    const selectedMaterial = materialsList.find(m => m.name === currentFieldValue?.name);
+                    const searchTerm = searchTerms[index] || "";
+                    const filteredMaterials = materialsList.filter(m =>
+                      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      String(m.family).toLowerCase().includes(searchTerm.toLowerCase())
+                    );
 
-                  return (
-                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-card/50">
-                      <FormField control={form.control} name={`materials.${index}.name`} render={({ field }) => (
+                    return (
+                      <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-card/50">
+                        <FormField control={form.control} name={`materials.${index}.name`} render={({ field }) => (
                           <FormItem className="md:col-span-6">
                             <FormLabel>Material</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button variant="outline" className={cn("w-full h-12 justify-between font-normal bg-card", !field.value && "text-muted-foreground")}>
-                                    {/* ✅ IMAGEN EN EL BOTÓN DESPUÉS DE SELECCIONAR */}
                                     <span className="flex items-center gap-2 truncate">
                                       {selectedMaterial && (
-                                        <MaterialImage
-                                          src={selectedMaterial.imageUrl}
-                                          alt={selectedMaterial.name}
-                                          className="w-7 h-7 flex-shrink-0"
-                                        />
+                                        <MaterialImage src={selectedMaterial.imageUrl} alt={selectedMaterial.name} className="w-7 h-7 flex-shrink-0" />
                                       )}
                                       <span className="truncate">{field.value || "Selecciona material..."}</span>
                                     </span>
@@ -321,13 +343,8 @@ export default function NewOrderPage() {
                                     <div className="p-2 space-y-1">
                                       {filteredMaterials.map(m => (
                                         <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
-                                          {/* ✅ IMAGEN EN LA LISTA DE BÚSQUEDA */}
                                           <div className="flex items-center gap-3 w-full text-left">
-                                            <MaterialImage
-                                              src={m.imageUrl}
-                                              alt={m.name}
-                                              className="w-10 h-10 flex-shrink-0"
-                                            />
+                                            <MaterialImage src={m.imageUrl} alt={m.name} className="w-10 h-10 flex-shrink-0" />
                                             <div className="flex flex-col truncate flex-1">
                                               <span className="font-bold truncate">{m.name}</span>
                                               <span className="text-[10px] opacity-70 truncate">{String(m.family)} &gt; {String(m.subfamily)}</span>
@@ -346,15 +363,10 @@ export default function NewOrderPage() {
                                             {Object.entries(subfamilies).map(([subfamily, items]) => (
                                               <div key={subfamily} className="py-2">
                                                 <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">{subfamily}</p>
-                                                {/* ✅ IMAGEN EN LA LISTA JERÁRQUICA */}
                                                 {items.map(m => (
                                                   <Button key={m.id} variant="ghost" className="w-full justify-start text-xs py-1 h-auto" onClick={() => field.onChange(m.name)}>
                                                     <div className="flex items-center gap-2 w-full text-left">
-                                                      <MaterialImage
-                                                        src={m.imageUrl}
-                                                        alt={m.name}
-                                                        className="w-8 h-8 flex-shrink-0"
-                                                      />
+                                                      <MaterialImage src={m.imageUrl} alt={m.name} className="w-8 h-8 flex-shrink-0" />
                                                       <span className="truncate">{m.name}</span>
                                                     </div>
                                                   </Button>
@@ -373,114 +385,109 @@ export default function NewOrderPage() {
                           </FormItem>
                         )} />
 
-                      {/* ✅ IMAGEN + PRECIO EN EL RESUMEN */}
-                      <div className="md:col-span-2">
+                        <div className="md:col-span-2">
                           <Label className="text-xs">Precio Unit.</Label>
                           <div className="flex items-center gap-2 mt-1">
                             {selectedMaterial && (
-                              <MaterialImage
-                                src={selectedMaterial.imageUrl}
-                                alt={selectedMaterial.name}
-                                className="w-9 h-9 flex-shrink-0 border rounded"
-                              />
+                              <MaterialImage src={selectedMaterial.imageUrl} alt={selectedMaterial.name} className="w-9 h-9 flex-shrink-0 border rounded" />
                             )}
                             <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}` : '-'} className="bg-muted text-xs h-9" />
                           </div>
-                      </div>
+                        </div>
 
-                      <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
+                        <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
                           <FormItem className="md:col-span-3">
                             <FormLabel className="text-xs">Cantidad (Disponible: {selectedMaterial?.stock || 0})</FormLabel>
                             <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="1"
-                                  placeholder="0"
-                                  {...field} 
-                                  className="h-10" 
-                                  onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, '');
-                                    field.onChange(val === '' ? '' : parseInt(val, 10));
-                                  }}
-                                />
+                              <Input type="number" step="1" placeholder="0" {...field} className="h-10"
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  field.onChange(val === '' ? '' : parseInt(val, 10));
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
-                      
-                      <div className="md:col-span-1 flex justify-center pb-0.5">
-                        <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}><Trash2 className="h-4 w-4" /></Button>
+
+                        <div className="md:col-span-1 flex justify-center pb-0.5">
+                          <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-                <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1 })} className="w-full"><Plus className="mr-2 h-4 w-4" /> Añadir otro material</Button>
-              </div>
-
-              <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
-                <FormField control={form.control} name="deliveryDates" render={({ field }) => (
-                  <FormItem className="w-full max-w-sm">
-                    <FormLabel>Periodo de Entrega</FormLabel>
-                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal", !field.value?.from && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value?.from ? (
-                                    field.value.to ? (
-                                        `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}`
-                                    ) : (
-                                        `${format(field.value.from, "PP", { locale: es })} (Selecciona fin...)`
-                                    )
-                                ) : "Seleccionar periodo de entrega"}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <div className="p-4 space-y-4">
-                                <Calendar 
-                                    mode="range" 
-                                    selected={{ from: field.value?.from, to: field.value?.to }} 
-                                    onSelect={(range) => field.onChange(range)} 
-                                    disabled={{ before: new Date() }} 
-                                    locale={es} 
-                                    initialFocus 
-                                />
-                                <Button 
-                                    className="w-full" 
-                                    onClick={() => setIsCalendarOpen(false)}
-                                    disabled={!field.value?.from || !field.value?.to}
-                                >
-                                    <Check className="mr-2 h-4 w-4" />
-                                    Confirmar Periodo
-                                </Button>
-                                {!field.value?.to && field.value?.from && (
-                                    <p className="text-[10px] text-center text-amber-600 animate-pulse">Selecciona la fecha de finalización.</p>
-                                )}
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground uppercase font-bold">Total Estimado</p>
-                  <p className="text-4xl font-extrabold text-primary">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-                  <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing}>
-                    {isProcessing ? (
-                        <>
-                            <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                            Enviando...
-                        </>
-                    ) : (
-                        'Confirmar Pedido'
-                    )}
+                    );
+                  })}
+                  <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1 })} className="w-full">
+                    <Plus className="mr-2 h-4 w-4" /> Añadir otro material
                   </Button>
                 </div>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+
+                <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
+                  <FormField control={form.control} name="deliveryDates" render={({ field }) => (
+                    <FormItem className="w-full max-w-sm">
+                      <FormLabel>Periodo de Entrega</FormLabel>
+                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal", !field.value?.from && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value?.from ? (
+                              field.value.to ? (
+                                `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}`
+                              ) : (
+                                `${format(field.value.from, "PP", { locale: es })} (Selecciona fin...)`
+                              )
+                            ) : "Seleccionar periodo de entrega"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-4 space-y-4">
+                            <Calendar
+                              mode="range"
+                              selected={{ from: field.value?.from, to: field.value?.to }}
+                              onSelect={(range) => field.onChange(range)}
+                              disabled={{ before: new Date() }}
+                              locale={es}
+                              initialFocus
+                            />
+                            <Button className="w-full" onClick={() => setIsCalendarOpen(false)} disabled={!field.value?.from || !field.value?.to}>
+                              <Check className="mr-2 h-4 w-4" />
+                              Confirmar Periodo
+                            </Button>
+                            {!field.value?.to && field.value?.from && (
+                              <p className="text-[10px] text-center text-amber-600 animate-pulse">Selecciona la fecha de finalización.</p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground uppercase font-bold">Total Estimado</p>
+                    <p className="text-4xl font-extrabold text-primary">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                    <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing}>
+                      {isProcessing ? (
+                        <><Loader2 className="animate-spin h-5 w-5 mr-2" />Procesando...</>
+                      ) : (
+                        'Confirmar Pedido'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+
+      <PaymentMethodModal
+        open={isPaymentModalOpen}
+        order={pendingOrderData}
+        onConfirm={handlePaymentConfirm}
+        onClose={handlePaymentModalClose}
+      />
+    </>
   );
 }
