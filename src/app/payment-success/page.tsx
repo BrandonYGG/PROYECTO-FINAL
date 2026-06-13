@@ -1,17 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useFirestore } from '@/firebase';
-import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getMaterials, updateMaterialStock } from '@/lib/materials';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const firestore = useFirestore();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
 
   const orderId = searchParams.get('orderId');
@@ -19,45 +15,16 @@ export default function PaymentSuccessPage() {
   const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
-    if (!orderId || !userId || !sessionId || !firestore) return;
+    if (!orderId || !userId || !sessionId) return;
 
     const confirmPayment = async () => {
       try {
-        // 1. Actualizar estado del pedido
-        const orderRef = doc(firestore, 'users', userId, 'orders', orderId);
-        await updateDoc(orderRef, {
-          status: 'Pendiente',
-          paymentMethod: 'tarjeta',
-          paymentConfirmed: true,
-          stripeSessionId: sessionId,
+        const res = await fetch('/api/confirm-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, orderId, userId }),
         });
-
-        // 2. Descontar stock
-        const { data: orderSnap } = await import('firebase/firestore').then(async ({ getDoc }) => {
-          return { data: await getDoc(orderRef) };
-        });
-
-        if (orderSnap.exists()) {
-          const orderData = orderSnap.data();
-          const materials = await getMaterials();
-          for (const item of orderData.materials) {
-            const materialInfo = materials.find((m: any) => m.name === item.name);
-            if (materialInfo) {
-              await updateMaterialStock(materialInfo.id, item.quantity, 'subtract');
-            }
-          }
-
-          // 3. Notificar al usuario
-          const notificationRef = collection(firestore, 'users', userId, 'notifications');
-          await addDoc(notificationRef, {
-            userId,
-            orderId,
-            message: `¡Tu pago para el pedido "${orderData.projectName}" fue confirmado! Tu pedido está siendo procesado.`,
-            read: false,
-            createdAt: serverTimestamp(),
-          });
-        }
-
+        if (!res.ok) throw new Error('Error del servidor');
         setStatus('success');
       } catch (e) {
         console.error('Error confirmando pago:', e);
@@ -66,7 +33,7 @@ export default function PaymentSuccessPage() {
     };
 
     confirmPayment();
-  }, [orderId, userId, sessionId, firestore]);
+  }, [orderId, userId, sessionId]);
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-14rem)] px-4">
@@ -95,5 +62,17 @@ export default function PaymentSuccessPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[calc(100vh-14rem)]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
