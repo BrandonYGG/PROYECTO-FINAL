@@ -191,7 +191,7 @@ export default function NewOrderPage() {
       });
 
       setCreatedOrderId(docRef.id);
-      setPendingOrderData({ id: docRef.id, projectName: values.projectName, total, requesterName: values.requesterName });
+      setPendingOrderData({ id: docRef.id, projectName: values.projectName, total, requesterName: values.requesterName, userId: user.uid });
       setIsPaymentModalOpen(true);
 
     } catch (error: any) {
