@@ -430,7 +430,6 @@ export default function OrderList() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                           <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsDetailsModalOpen(true); }}><Eye className="mr-2 h-4 w-4" />Ver Resumen</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsSignatureModalOpen(true); }} disabled={isFinalState || !!order.deliveryConfirmation}><Edit className="mr-2 h-4 w-4" />Confirmar Entrega</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {/* ✅ Botones de pago solo para pedidos pendientes de pago */}
                           {isPendingPayment && (
@@ -444,8 +443,9 @@ export default function OrderList() {
                               <DropdownMenuSeparator />
                             </>
                           )}
-                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'En proceso')} disabled={isFinalState || isPendingPayment || order.status === 'En proceso'}><Package className="mr-2 h-4 w-4" />Procesar</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'Enviado')} disabled={isFinalState || isPendingPayment || order.status === 'Enviado'}><Truck className="mr-2 h-4 w-4" />Enviar</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'En proceso')} disabled={order.status !== 'Pendiente'}><Package className="mr-2 h-4 w-4" />Procesar</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(order, 'Enviado')} disabled={order.status !== 'En proceso'}><Truck className="mr-2 h-4 w-4" />Enviar</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => { setSelectedOrder(order); setIsSignatureModalOpen(true); }} disabled={order.status !== 'Enviado'}><Edit className="mr-2 h-4 w-4" />Confirmar Entrega</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-amber-600" onClick={() => handleStatusChange(order, 'Cancelado')} disabled={isFinalState}><XCircle className="mr-2 h-4 w-4" />Cancelar</DropdownMenuItem>
                           <DropdownMenuItem className="text-red-600" onClick={() => confirmDeleteOrder(order)} disabled={isDeleting}><Trash2 className="mr-2 h-4 w-4" />Eliminar Registro</DropdownMenuItem>
