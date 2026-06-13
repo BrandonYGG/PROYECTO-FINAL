@@ -1,7 +1,9 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  env: {
+    NEXT_PUBLIC_APP_URL: 'https://comercializadorapinos.netlify.app',
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -44,4 +46,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default nextConfig
