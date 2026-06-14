@@ -18,7 +18,7 @@ import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { geocodeAddress } from "@/app/actions/geocode-actions";
 import { getMaterials, type Material } from "@/lib/materials";
@@ -169,15 +169,27 @@ export default function NewOrderPage() {
         if (geocoded) location = geocoded;
       } catch (e) { console.warn("Geo fallback"); }
 
+      // Obtener tipo de usuario
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      const userType = userDocSnap.exists() ? userDocSnap.data().userType : 'normal';
+      const isSuperintendent = userType === 'superintendent';
+
       const orderData = {
         ...values,
         location,
         total,
         userId: user.uid,
         priority,
-        status: 'Pendiente de pago',
+        status: isSuperintendent ? 'Pendiente de aprobación' : 'Pendiente de pago',
         paymentMethod: null,
         createdAt: serverTimestamp(),
+        // Si es superintendente, guardar referencia a su empresa
+        ...(isSuperintendent && userDocSnap.exists() && {
+          businessId: userDocSnap.data().businessId,
+          superintendentId: user.uid,
+          superintendentName: `${userDocSnap.data().firstName} ${userDocSnap.data().lastName}`,
+        }),
       };
 
       const ordersRef = collection(firestore, 'users', user.uid, 'orders');
@@ -190,9 +202,17 @@ export default function NewOrderPage() {
         throw error;
       });
 
-      setCreatedOrderId(docRef.id);
-      setPendingOrderData({ id: docRef.id, projectName: values.projectName, total, requesterName: values.requesterName, userId: user.uid });
-      setIsPaymentModalOpen(true);
+      if (isSuperintendent) {
+        toast({
+          title: "¡Pedido enviado!",
+          description: "Tu pedido fue enviado a tu empresa para aprobación.",
+        });
+        router.push('/profile');
+      } else {
+        setCreatedOrderId(docRef.id);
+        setPendingOrderData({ id: docRef.id, projectName: values.projectName, total, requesterName: values.requesterName, userId: user.uid });
+        setIsPaymentModalOpen(true);
+      }
 
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message || "Ocurrió un error al procesar el pedido." });

@@ -15,6 +15,8 @@ import BusinessList from "@/components/admin/business-list";
 import OrderList from "@/components/admin/order-list";
 import UserOrderList from "@/components/profile/user-order-list";
 import SuperintendentManager from "@/components/business/superintendent-manager";
+import SuperintendentOrderPanel from '@/components/superintendent/superintendent-order-panel';
+import BusinessOrderPanel from '@/components/business/business-order-panel';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -25,6 +27,7 @@ export default function ProfilePage() {
   const [businessData, setBusinessData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isBusiness, setIsBusiness] = useState(false);
+  const [isSuperintendent, setIsSuperintendent] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   useEffect(() => {
@@ -48,12 +51,13 @@ export default function ProfilePage() {
             setIsAdmin(true);
           } else if (fetchedUserData.userType === 'business') {
             setIsBusiness(true);
-            // Cargar datos de la empresa
             const businessDocRef = doc(firestore, "businesses", user.uid);
             const businessDocSnap = await getDoc(businessDocRef);
             if (businessDocSnap.exists()) {
               setBusinessData(businessDocSnap.data());
             }
+          } else if (fetchedUserData.userType === 'superintendent') {
+            setIsSuperintendent(true);
           }
         } else {
           signOut(auth).finally(() => router.push('/login'));
@@ -188,7 +192,61 @@ export default function ProfilePage() {
           </div>
           <div className="lg:col-span-3 space-y-8">
             <SuperintendentManager businessData={businessData} />
-            <UserOrderList />
+            <BusinessOrderPanel />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VISTA SUPERINTENDENTE ---
+  if (isSuperintendent) {
+    return (
+      <div className="container mx-auto py-12 px-4 animate-fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1">
+            <Card className="w-full shadow-lg">
+              <CardHeader className="items-center text-center">
+                <Avatar className="h-24 w-24 mb-2">
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                    {nameFallback}
+                  </AvatarFallback>
+                </Avatar>
+                <CardTitle className="text-xl font-bold font-headline">
+                  {userData?.firstName} {userData?.lastName}
+                </CardTitle>
+                <CardDescription>Panel de Superintendente</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-xs text-muted-foreground">
+                  {user.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground truncate">{user.email}</span>
+                    </div>
+                  )}
+                  {userData?.businessName && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground">{userData.businessName}</span>
+                    </div>
+                  )}
+                </div>
+                <Button asChild className="w-full">
+                  <Link href="/new-order">
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Nuevo Pedido
+                  </Link>
+                </Button>
+                <Button onClick={handleLogout} variant="outline" className="w-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-3 space-y-8">
+            <SuperintendentOrderPanel />
           </div>
         </div>
       </div>
@@ -237,7 +295,6 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
-
         <div className="md:col-span-2 space-y-8">
           <div className="grid grid-cols-1 gap-4">
             <Card className="hover:shadow-md transition-shadow">
@@ -252,7 +309,6 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
           </div>
-
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-start gap-3 text-sm sm:text-base animate-pulse-subtle">
             <Phone className="h-5 w-5 text-primary mt-0.5 shrink-0" />
             <p className="text-muted-foreground">
@@ -262,7 +318,6 @@ export default function ProfilePage() {
               </a>
             </p>
           </div>
-
           <UserOrderList />
         </div>
       </div>
