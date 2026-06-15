@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useUser } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, serverTimestamp, onSnapshot, orderBy, doc, updateDoc, collectionGroup } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, ShoppingCart, MessageCircle, Send, CheckCircle, XCircle, AlertCircle, CreditCard } from 'lucide-react';
+import { Loader2, ShoppingCart, MessageCircle, Send, CheckCircle, XCircle, AlertCircle, CreditCard, Users, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,7 @@ export default function BusinessOrderPanel() {
   const [isSending, setIsSending] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [correctionMessage, setCorrectionMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (!user || !firestore) return;
@@ -59,6 +60,21 @@ export default function BusinessOrderPanel() {
 
     return () => unsubscribe();
   }, [user, firestore]);
+
+  const groupedOrders = useMemo(() => {
+    const filtered = orders.filter(order =>
+      searchTerm === '' ||
+      order.superintendentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.projectName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return filtered.reduce((groups: Record<string, any>, order) => {
+      const key = order.superintendentId || 'Sin asignar';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(order);
+      return groups;
+    }, {});
+  }, [orders, searchTerm]);
 
   const openMessages = (order: any) => {
     setSelectedOrder(order);
@@ -204,62 +220,88 @@ export default function BusinessOrderPanel() {
           <CardDescription>Revisa y aprueba los pedidos de tu equipo.</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Buscador */}
+          <div className="mb-4 relative">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por superintendente u obra..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
           {isLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="animate-spin h-8 w-8 text-primary" />
             </div>
-          ) : orders.length === 0 ? (
+          ) : Object.keys(groupedOrders).length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              No hay pedidos de tus superintendentes aún.
+              {searchTerm ? 'No hay resultados para tu búsqueda.' : 'No hay pedidos de tus superintendentes aún.'}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Superintendente</TableHead>
-                  <TableHead>Obra</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map(order => (
-                  <TableRow key={order.id}>
-                    <TableCell className="text-sm">
-                      {order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yy', { locale: es }) : 'N/A'}
-                    </TableCell>
-                    <TableCell className="font-medium">{order.superintendentName}</TableCell>
-                    <TableCell>{order.projectName}</TableCell>
-                    <TableCell>${order.total?.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={statusStyles[order.status] || ''}>
-                        {order.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right flex gap-1 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => openMessages(order)}>
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        Chat
-                      </Button>
-                      {order.status === 'Pendiente de aprobación' && (
-                        <Button size="sm" onClick={() => openAction(order)}>
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Revisar
-                        </Button>
-                      )}
-                      {order.status === 'Aprobado' && (
-                        <Button size="sm" onClick={() => openAction(order)}>
-                          <CreditCard className="h-4 w-4 mr-1" />
-                          Pagar
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            Object.entries(groupedOrders).map(([superintendentId, superintendentOrders]) => {
+              const firstOrder = superintendentOrders[0];
+              return (
+                <div key={superintendentId} className="mb-6">
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="font-semibold">
+                      {firstOrder.superintendentName || 'Sin nombre'}
+                    </span>
+                    <Badge variant="secondary">
+                      {superintendentOrders.length} pedido{superintendentOrders.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Obra</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {superintendentOrders.map((order: any) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="text-sm">
+                            {order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yy', { locale: es }) : 'N/A'}
+                          </TableCell>
+                          <TableCell>{order.projectName}</TableCell>
+                          <TableCell>${order.total?.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={statusStyles[order.status] || ''}>
+                              {order.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right flex gap-1 justify-end">
+                            <Button variant="ghost" size="sm" onClick={() => openMessages(order)}>
+                              <MessageCircle className="h-4 w-4 mr-1" />
+                              Chat
+                            </Button>
+                            {order.status === 'Pendiente de aprobación' && (
+                              <Button size="sm" onClick={() => openAction(order)}>
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Revisar
+                              </Button>
+                            )}
+                            {order.status === 'Aprobado' && (
+                              <Button size="sm" onClick={() => openAction(order)}>
+                                <CreditCard className="h-4 w-4 mr-1" />
+                                Pagar
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })
           )}
         </CardContent>
       </Card>
