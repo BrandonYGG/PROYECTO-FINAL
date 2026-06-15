@@ -15,7 +15,7 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             ¿Aún no tienes una cuenta?{' '}
             <Link href="/signup" className="font-semibold text-primary hover:underline">
-              Regístrate
+              ¡Regístrate!
             </Link>
           </p>
         </CardContent>
