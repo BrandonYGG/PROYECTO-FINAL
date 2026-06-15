@@ -102,7 +102,7 @@ export default function ProfilePage() {
                   <AvatarFallback>{nameFallback}</AvatarFallback>
                 </Avatar>
                 <CardTitle className="text-xl font-bold font-headline">{user.displayName || 'Administrador'}</CardTitle>
-                <CardDescription>Panel de Administrador</CardDescription>
+                <CardDescription>Panel de Gestión Administrador</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3 text-xs text-muted-foreground">
