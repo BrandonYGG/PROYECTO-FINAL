@@ -13,7 +13,7 @@ export default function LoginPage() {
         <CardContent>
           <LoginForm />
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            ¿No tienes una cuenta?{' '}
+            ¿Aún no tienes una cuenta?{' '}
             <Link href="/signup" className="font-semibold text-primary hover:underline">
               Regístrate
             </Link>
