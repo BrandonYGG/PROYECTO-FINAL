@@ -422,7 +422,21 @@ export default function NewOrderPage() {
                               <Input type="number" step="1" placeholder="0" {...field} className="h-10"
                                 onChange={(e) => {
                                   const val = e.target.value.replace(/\D/g, '');
-                                  field.onChange(val === '' ? '' : parseInt(val, 10));
+                                  
+                                  if (val === '') {
+                                    field.onChange('');
+                                    return;
+                                  }
+
+                                  let parsedVal = parseInt(val, 10);
+                                  const stockMaximo = selectedMaterial?.stock || 0;
+
+                                  // Forzar que no supere el stock máximo disponible
+                                  if (parsedVal > stockMaximo) {
+                                    parsedVal = stockMaximo;
+                                  }
+
+                                  field.onChange(parsedVal);
                                 }}
                               />
                             </FormControl>
