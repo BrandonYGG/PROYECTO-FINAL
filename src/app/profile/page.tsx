@@ -102,7 +102,7 @@ export default function ProfilePage() {
                   <AvatarFallback>{nameFallback}</AvatarFallback>
                 </Avatar>
                 <CardTitle className="text-xl font-bold font-headline">{user.displayName || 'Administrador'}</CardTitle>
-                <CardDescription>Panel de Gestión Administrador</CardDescription>
+                <CardDescription>Panel de Administrador</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3 text-xs text-muted-foreground">
@@ -183,6 +183,12 @@ export default function ProfilePage() {
                     <span className="font-bold text-primary">Cuenta Empresarial</span>
                   </div>
                 </div>
+                <Button asChild className="w-full">
+                  <Link href="/new-order">
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Nuevo Pedido
+                  </Link>
+                </Button>
                 <Button onClick={handleLogout} variant="outline" className="w-full">
                   <LogOut className="mr-2 h-4 w-4" />
                   Cerrar Sesión
