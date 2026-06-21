@@ -1,527 +1,332 @@
 'use client';
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { mexicoStates, State } from '@/lib/mexico-states';
-import { useState, useEffect, useMemo } from "react";
-import { CalendarIcon, Plus, Trash2, Loader2, Search, FolderTree, Check, Phone } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { format } from "date-fns";
-import { es } from 'date-fns/locale';
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { User, Mail, Phone, LogOut, PackagePlus, Shield, Briefcase, Database, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useFirestore, useUser } from "@/firebase";
-import { addDoc, collection, serverTimestamp, doc, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
-import { geocodeAddress } from "@/app/actions/geocode-actions";
-import { getMaterials, type Material } from "@/lib/materials";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import PaymentMethodModal from "@/components/profile/payment-method-modal";
+import { useEffect, useState } from "react";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { Loader2 } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import UserList from "@/components/admin/user-list";
+import BusinessList from "@/components/admin/business-list";
+import OrderList from "@/components/admin/order-list";
+import UserOrderList from "@/components/profile/user-order-list";
+import SuperintendentManager from "@/components/business/superintendent-manager";
+import SuperintendentOrderPanel from '@/components/superintendent/superintendent-order-panel';
+import BusinessOrderPanel from '@/components/business/business-order-panel';
 
-const materialOrderSchema = z.object({
-  name: z.string().min(1, { message: "Debes seleccionar un material." }),
-  quantity: z.coerce.number().int({ message: "La cantidad debe ser un número entero." }).min(1, { message: "La cantidad debe ser al menos 1." }),
-});
-
-const orderSchema = z.object({
-  requesterName: z.string().min(1, { message: "El nombre es requerido." }),
-  projectName: z.string().min(1, { message: "El nombre de la obra es requerido." }),
-  phone: z.string().min(10, { message: "El teléfono debe tener al menos 10 dígitos." }).regex(/^\d+$/, { message: "Solo se permiten números." }),
-  street: z.string().min(1, { message: "La calle es requerida." }),
-  number: z.string().min(1, {message: 'El número exterior es requerido.'}).regex(/^\d+$/, { message: "Solo se permiten números." }),
-  colony: z.string().min(1, { message: "La colonia es requerida." }),
-  postalCode: z.string().min(5, { message: "El código postal debe tener 5 dígitos." }).regex(/^\d+$/, { message: "Solo se permiten números." }),
-  state: z.string().min(1, { message: "Debes seleccionar un estado." }),
-  municipality: z.string().min(1, { message: "Debes seleccionar un municipio/delegación." }),
-  materials: z.array(materialOrderSchema).min(1, { message: "Debes añadir al menos un material." }),
-  deliveryDates: z.object({
-    from: z.date({ required_error: "La fecha de inicio es requerida."}),
-    to: z.date({ required_error: "La fecha de fin es requerida."}),
-  }, { required_error: "Debes seleccionar un rango de fechas completo." }),
-});
-
-type OrderFormData = z.infer<typeof orderSchema>;
-
-function getPriorityFromDate(startDate: Date): 'Urgente' | 'Pronto' | 'Normal' {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const diffTime = start.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays <= 3) return 'Urgente';
-    if (diffDays <= 7) return 'Pronto';
-    return 'Normal';
-}
-
-function MaterialImage({ src, alt, className }: { src: string | null | undefined, alt: string, className?: string }) {
-  const [error, setError] = useState(false);
-  if (!src || error) {
-    return (
-      <div className={cn("bg-muted flex items-center justify-center text-muted-foreground text-xs rounded", className)}>
-        📦
-      </div>
-    );
-  }
-  return (
-    <img src={src} alt={alt} className={cn("object-cover rounded", className)} onError={() => setError(true)} />
-  );
-}
-
-export default function NewOrderPage() {
+export default function ProfilePage() {
   const router = useRouter();
+  const auth = useAuth();
   const firestore = useFirestore();
-  const { user } = useUser();
-  const { toast } = useToast();
-  const [selectedState, setSelectedState] = useState<State | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [materialsList, setMaterialsList] = useState<Material[]>([]);
-  const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
-  const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
-
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
-  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
-
-  const form = useForm<OrderFormData>({
-    resolver: zodResolver(orderSchema),
-    defaultValues: {
-      requesterName: '',
-      projectName: '',
-      phone: '',
-      street: '',
-      number: '',
-      colony: '',
-      postalCode: '',
-      state: '',
-      municipality: '',
-      materials: [{ name: '', quantity: 1 }],
-      deliveryDates: { from: undefined as any, to: undefined as any },
-    },
-  });
-
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: "materials" });
-  const watchedMaterials = useWatch({ control: form.control, name: "materials" });
+  const { user, isUserLoading } = useUser();
+  const [userData, setUserData] = useState<any>(null);
+  const [businessData, setBusinessData] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
+  const [isSuperintendent, setIsSuperintendent] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
-    getMaterials().then(m => {
-      setMaterialsList(m);
-      setIsMaterialsLoading(false);
-    });
-  }, []);
-
-  const hierarchicalMaterials = useMemo(() => {
-    const hierarchy: Record<string, Record<string, Material[]>> = {};
-    materialsList.forEach(m => {
-      const f = String(m.family || 'General');
-      const sf = String(m.subfamily || 'Varios');
-      if (!hierarchy[f]) hierarchy[f] = {};
-      if (!hierarchy[f][sf]) hierarchy[f][sf] = [];
-      hierarchy[f][sf].push(m);
-    });
-    return hierarchy;
-  }, [materialsList]);
-
-  const watchState = form.watch('state');
-
-  const total = useMemo(() => {
-    return (watchedMaterials || []).reduce((acc, current) => {
-      const materialInfo = materialsList.find(m => m.name === current.name);
-      return acc + ((materialInfo?.price || 0) * (Number(current.quantity) || 0));
-    }, 0);
-  }, [watchedMaterials, materialsList]);
-
-  useEffect(() => {
-    if (watchState) {
-      setSelectedState(mexicoStates.find(s => s.nombre === watchState) || null);
-    }
-  }, [watchState]);
-
-  async function handleInitialSubmit(values: OrderFormData) {
-    if (!user || !firestore) return;
-    if (total <= 0) {
-      toast({ variant: "destructive", title: "Error en el pedido", description: "Debes seleccionar al menos un material con cantidad válida." });
+    if (isUserLoading) return;
+    if (!user) {
+      router.push('/login');
       return;
     }
 
-    setIsProcessing(true);
-    try {
-      const priority = getPriorityFromDate(values.deliveryDates.from);
-      let location = { lat: 19.4326, lng: -99.1332 };
+    const checkUser = async () => {
+      setIsLoadingProfile(true);
       try {
-        const fullAddress = `${values.street} ${values.number}, ${values.colony}, ${values.municipality}, ${values.state}`;
-        const geocoded = await geocodeAddress({ address: fullAddress });
-        if (geocoded) location = geocoded;
-      } catch (e) { console.warn("Geo fallback"); }
+        await user.reload();
+        const userDocRef = doc(firestore, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-      // Obtener tipo de usuario
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      const userType = userDocSnap.exists() ? userDocSnap.data().userType : 'normal';
-      const isSuperintendent = userType === 'superintendent';
-
-      const orderData = {
-        ...values,
-        location,
-        total,
-        userId: user.uid,
-        priority,
-        status: isSuperintendent ? 'Pendiente de aprobación' : 'Pendiente de pago',
-        paymentMethod: null,
-        createdAt: serverTimestamp(),
-        // Si es superintendente, guardar referencia a su empresa
-        ...(isSuperintendent && userDocSnap.exists() && {
-          businessId: userDocSnap.data().businessId,
-          superintendentId: user.uid,
-          superintendentName: `${userDocSnap.data().firstName} ${userDocSnap.data().lastName}`,
-        }),
-      };
-
-      const ordersRef = collection(firestore, 'users', user.uid, 'orders');
-      const docRef = await addDoc(ordersRef, orderData).catch(error => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: ordersRef.path,
-          operation: 'create',
-          requestResourceData: orderData
-        }));
-        throw error;
-      });
-
-      if (isSuperintendent) {
-        toast({
-          title: "¡Pedido enviado!",
-          description: "Tu pedido fue enviado a tu empresa para aprobación.",
-        });
-        router.push('/profile');
-      } else {
-        setCreatedOrderId(docRef.id);
-        setPendingOrderData({ id: docRef.id, projectName: values.projectName, total, requesterName: values.requesterName, userId: user.uid });
-        setIsPaymentModalOpen(true);
+        if (userDocSnap.exists()) {
+          const fetchedUserData = userDocSnap.data();
+          setUserData(fetchedUserData);
+          if (fetchedUserData.userType === 'admin') {
+            setIsAdmin(true);
+          } else if (fetchedUserData.userType === 'business') {
+            setIsBusiness(true);
+            const businessDocRef = doc(firestore, "businesses", user.uid);
+            const businessDocSnap = await getDoc(businessDocRef);
+            if (businessDocSnap.exists()) {
+              setBusinessData(businessDocSnap.data());
+            }
+          } else if (fetchedUserData.userType === 'superintendent') {
+            setIsSuperintendent(true);
+          }
+        } else {
+          signOut(auth).finally(() => router.push('/login'));
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        signOut(auth).finally(() => router.push('/login'));
+      } finally {
+        setIsLoadingProfile(false);
       }
+    };
 
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message || "Ocurrió un error al procesar el pedido." });
-    } finally {
-      setIsProcessing(false);
-    }
-  }
+    checkUser();
+  }, [user, isUserLoading, router, auth, firestore]);
 
-  const handlePaymentConfirm = async (method: 'transferencia' | 'oxxo') => {
-    if (!createdOrderId || !user) return;
-    try {
-      const orderRef = doc(firestore, 'users', user.uid, 'orders', createdOrderId);
-      await updateDoc(orderRef, { paymentMethod: method });
-
-      setIsPaymentModalOpen(false);
-      toast({
-        title: "¡Pedido registrado!",
-        description: `Tu pedido está reservado. Envía tu comprobante de ${method === 'transferencia' ? 'transferencia' : 'depósito OXXO'} por WhatsApp.`,
-      });
-      router.push('/profile');
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el método de pago." });
-    }
+  const handleLogout = () => {
+    signOut(auth).finally(() => router.push('/'));
   };
 
-  // ✅ Bug #2 fix: si cierra el modal sin confirmar, borrar el pedido huérfano
-  const handlePaymentModalClose = async () => {
-    if (createdOrderId && user) {
-      try {
-        await deleteDoc(doc(firestore, 'users', user.uid, 'orders', createdOrderId));
-      } catch (e) {
-        console.warn('No se pudo borrar el pedido huérfano:', e);
-      }
-    }
-    setIsPaymentModalOpen(false);
-    setCreatedOrderId(null);
-    setPendingOrderData(null);
-  };
-
-  const onInvalid = (errors: any) => {
-    const errorFields = Object.keys(errors).map(key => {
-      if (key === 'deliveryDates') return 'Periodo de Entrega (necesitas inicio y fin)';
-      if (key === 'materials') return 'Materiales';
-      if (key === 'phone') return 'Teléfono (10 dígitos)';
-      if (key === 'colony') return 'Colonia';
-      return key;
-    }).join(", ");
-    toast({
-      variant: "destructive",
-      title: "Formulario Incompleto",
-      description: `Por favor revisa los campos: ${errorFields}. Asegúrate de que el total sea mayor a 0.`,
-    });
-  };
-
-  if (!mounted) {
+  if (isLoadingProfile || isUserLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-[calc(100vh-14rem)]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
   }
 
-  return (
-    <>
+  if (!user) return null;
+
+  const nameFallback = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+
+  // --- VISTA ADMIN ---
+  if (isAdmin) {
+    return (
       <div className="container mx-auto py-12 px-4 animate-fade-in">
-        <Card className="max-w-4xl mx-auto shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-3xl font-bold font-headline">Crear Nuevo Pedido</CardTitle>
-            <CardDescription>Selecciona tus materiales y verifica disponibilidad.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleInitialSubmit, onInvalid)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b pb-6">
-                  <FormField control={form.control} name="requesterName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Solicitante</FormLabel><FormControl><Input placeholder="Nombre completo" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="projectName" render={({ field }) => (<FormItem className="md:col-span-1"><FormLabel>Nombre de la Obra</FormLabel><FormControl><Input placeholder="Ej. Casa Bosque" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem className="md:col-span-1">
-                      <FormLabel>Teléfono de Contacto</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="10 dígitos" className="pl-10" {...field} maxLength={10} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 border-b pb-6">
-                  <FormField control={form.control} name="street" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Calle</FormLabel><FormControl><Input placeholder="Av. Principal" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="number" render={({ field }) => (<FormItem><FormLabel>N° Exterior</FormLabel><FormControl><Input placeholder="Solo números" {...field} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="colony" render={({ field }) => (<FormItem><FormLabel>Colonia</FormLabel><FormControl><Input placeholder="Ej. Juárez" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="state" render={({ field }) => (
-                    <FormItem><FormLabel>Estado</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
-                        <SelectContent>{mexicoStates.map(s => <SelectItem key={s.nombre} value={s.nombre}>{s.nombre}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="municipality" render={({ field }) => (
-                    <FormItem><FormLabel>Municipio / Delegación</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger></FormControl>
-                        <SelectContent>{selectedState?.municipios.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="postalCode" render={({ field }) => (<FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input placeholder="5 dígitos" {...field} maxLength={5} onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))} /></FormControl><FormMessage /></FormItem>)} />
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold flex items-center gap-2"><FolderTree className="h-5 w-5" /> Selección de Materiales</h3>
-                  {fields.map((field, index) => {
-                    const currentFieldValue = watchedMaterials?.[index];
-                    const selectedMaterial = materialsList.find(m => m.name === currentFieldValue?.name);
-                    const searchTerm = searchTerms[index] || "";
-                    const filteredMaterials = materialsList.filter(m =>
-                      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      String(m.family).toLowerCase().includes(searchTerm.toLowerCase())
-                    );
-
-                    return (
-                      <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-card/50">
-                        <FormField control={form.control} name={`materials.${index}.name`} render={({ field }) => (
-                          <FormItem className="md:col-span-6">
-                            <FormLabel>Material</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button variant="outline" className={cn("w-full h-12 justify-between font-normal bg-card", !field.value && "text-muted-foreground")}>
-                                    <span className="flex items-center gap-2 truncate">
-                                      {selectedMaterial && (
-                                        <MaterialImage src={selectedMaterial.imageUrl} alt={selectedMaterial.name} className="w-7 h-7 flex-shrink-0" />
-                                      )}
-                                      <span className="truncate">{field.value || "Selecciona material..."}</span>
-                                    </span>
-                                    <Search className="ml-2 h-4 w-4 opacity-50 flex-shrink-0" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[400px] p-0" align="start">
-                                <div className="p-2 border-b"><Input placeholder="Buscar por nombre..." value={searchTerm} onChange={(e) => setSearchTerms(prev => ({ ...prev, [index]: e.target.value }))} /></div>
-                                <ScrollArea className="h-[300px]">
-                                  {searchTerm ? (
-                                    <div className="p-2 space-y-1">
-                                      {filteredMaterials.map(m => (
-                                        <Button key={m.id} variant="ghost" className="w-full justify-start text-xs h-auto py-2" onClick={() => field.onChange(m.name)}>
-                                          <div className="flex items-center gap-3 w-full text-left">
-                                            <MaterialImage src={m.imageUrl} alt={m.name} className="w-10 h-10 flex-shrink-0" />
-                                            <div className="flex flex-col truncate flex-1">
-                                              <span className="font-bold truncate">{m.name}</span>
-                                              <span className="text-[10px] opacity-70 truncate">{String(m.family)} &gt; {String(m.subfamily)}</span>
-                                            </div>
-                                            <Badge variant="secondary" className="text-[9px]">${m.price}/{m.unit}</Badge>
-                                          </div>
-                                        </Button>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <Accordion type="single" collapsible className="w-full">
-                                      {Object.entries(hierarchicalMaterials).map(([family, subfamilies]) => (
-                                        <AccordionItem value={family} key={family} className="border-none">
-                                          <AccordionTrigger className="px-4 py-2 hover:no-underline text-sm font-bold">{family}</AccordionTrigger>
-                                          <AccordionContent className="pb-0 pl-4 border-l ml-4">
-                                            {Object.entries(subfamilies).map(([subfamily, items]) => (
-                                              <div key={subfamily} className="py-2">
-                                                <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">{subfamily}</p>
-                                                {items.map(m => (
-                                                  <Button key={m.id} variant="ghost" className="w-full justify-start text-xs py-1 h-auto" onClick={() => field.onChange(m.name)}>
-                                                    <div className="flex items-center gap-2 w-full text-left">
-                                                      <MaterialImage src={m.imageUrl} alt={m.name} className="w-8 h-8 flex-shrink-0" />
-                                                      <span className="truncate">{m.name}</span>
-                                                    </div>
-                                                  </Button>
-                                                ))}
-                                              </div>
-                                            ))}
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      ))}
-                                    </Accordion>
-                                  )}
-                                </ScrollArea>
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-
-                        <div className="md:col-span-2">
-                          <Label className="text-xs">Precio Unit.</Label>
-                          <div className="flex items-center gap-2 mt-1">
-                            {selectedMaterial && (
-                              <MaterialImage src={selectedMaterial.imageUrl} alt={selectedMaterial.name} className="w-9 h-9 flex-shrink-0 border rounded" />
-                            )}
-                            <Input readOnly value={selectedMaterial ? `$${selectedMaterial.price}/${selectedMaterial.unit}` : '-'} className="bg-muted text-xs h-9" />
-                          </div>
-                        </div>
-
-                        <FormField control={form.control} name={`materials.${index}.quantity`} render={({ field }) => (
-                          <FormItem className="md:col-span-3">
-                            <FormLabel className="text-xs">Cantidad (Disponible: {selectedMaterial?.stock || 0})</FormLabel>
-                            <FormControl>
-                              <Input type="number" step="1" placeholder="0" {...field} className="h-10"
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, '');
-                                  
-                                  if (val === '') {
-                                    field.onChange('');
-                                    return;
-                                  }
-
-                                  let parsedVal = parseInt(val, 10);
-                                  const stockMaximo = selectedMaterial?.stock || 0;
-
-                                  // Forzar que no supere el stock máximo disponible
-                                  if (parsedVal > stockMaximo) {
-                                    parsedVal = stockMaximo;
-                                  }
-
-                                  field.onChange(parsedVal);
-                                }}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-
-                        <div className="md:col-span-1 flex justify-center pb-0.5">
-                          <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive" disabled={fields.length === 1}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <Button type="button" variant="outline" onClick={() => append({ name: '', quantity: 1 })} className="w-full">
-                    <Plus className="mr-2 h-4 w-4" /> Añadir otro material
-                  </Button>
-                </div>
-
-                <div className="flex flex-col md:flex-row justify-between items-end gap-6 pt-6 border-t">
-                  <FormField control={form.control} name="deliveryDates" render={({ field }) => (
-                    <FormItem className="w-full max-w-sm">
-                      <FormLabel>Periodo de Entrega</FormLabel>
-                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-normal", !field.value?.from && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value?.from ? (
-                              field.value.to ? (
-                                `${format(field.value.from, "PP", { locale: es })} - ${format(field.value.to, "PP", { locale: es })}`
-                              ) : (
-                                `${format(field.value.from, "PP", { locale: es })} (Selecciona fin...)`
-                              )
-                            ) : "Seleccionar periodo de entrega"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-4 space-y-4">
-                            <Calendar
-                              mode="range"
-                              selected={{ from: field.value?.from, to: field.value?.to }}
-                              onSelect={(range) => field.onChange(range)}
-                              disabled={{ before: new Date() }}
-                              locale={es}
-                              initialFocus
-                            />
-                            <Button className="w-full" onClick={() => setIsCalendarOpen(false)} disabled={!field.value?.from || !field.value?.to}>
-                              <Check className="mr-2 h-4 w-4" />
-                              Confirmar Periodo
-                            </Button>
-                            {!field.value?.to && field.value?.from && (
-                              <p className="text-[10px] text-center text-amber-600 animate-pulse">Selecciona la fecha de finalización.</p>
-                            )}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground uppercase font-bold">Total Estimado</p>
-                    <p className="text-4xl font-extrabold text-primary">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-                    <Button size="lg" type="submit" className="mt-4 px-12" disabled={isProcessing}>
-                      {isProcessing ? (
-                        <><Loader2 className="animate-spin h-5 w-5 mr-2" />Procesando...</>
-                      ) : (
-                        'Confirmar Pedido'
-                      )}
-                    </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1">
+            <Card className="w-full shadow-lg">
+              <CardHeader className="items-center text-center">
+                <Avatar className="h-24 w-24 mb-2">
+                  <AvatarImage src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTwjUDzWTN_cm49cji7n30AHDElHnzxOKWMOA&s" alt="Admin" />
+                  <AvatarFallback>{nameFallback}</AvatarFallback>
+                </Avatar>
+                <CardTitle className="text-xl font-bold font-headline">{user.displayName || 'Administrador'}</CardTitle>
+                <CardDescription>Panel de Administrador</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-xs text-muted-foreground">
+                  {user.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground truncate">{user.email}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 p-1.5 bg-primary/10 rounded-md">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span className="font-bold text-primary">Rol de Administrador</span>
                   </div>
                 </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`} target="_blank" rel="noopener noreferrer">
+                    <Database className="mr-2 h-4 w-4" />
+                    Consola de Firebase
+                  </Link>
+                </Button>
+                <Button onClick={handleLogout} variant="outline" className="w-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-3 space-y-8">
+            <OrderList />
+            <UserList />
+            <BusinessList />
+          </div>
+        </div>
       </div>
+    );
+  }
 
-      <PaymentMethodModal
-        open={isPaymentModalOpen}
-        order={pendingOrderData}
-        onConfirm={handlePaymentConfirm}
-        onClose={handlePaymentModalClose}
-      />
-    </>
+  // --- VISTA EMPRESA ---
+  if (isBusiness) {
+    return (
+      <div className="container mx-auto py-12 px-4 animate-fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1">
+            <Card className="w-full shadow-lg">
+              <CardHeader className="items-center text-center">
+                <Avatar className="h-24 w-24 mb-2">
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                    {nameFallback}
+                  </AvatarFallback>
+                </Avatar>
+                <CardTitle className="text-xl font-bold font-headline">
+                  {businessData?.companyName || user.displayName || 'Empresa'}
+                </CardTitle>
+                <CardDescription>Panel de Empresa</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-xs text-muted-foreground">
+                  {user.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground truncate">{user.email}</span>
+                    </div>
+                  )}
+                  {businessData?.phoneNumber && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground">{businessData.phoneNumber}</span>
+                    </div>
+                  )}
+                  {businessData?.rfc && (
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground">RFC: {businessData.rfc}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 p-1.5 bg-primary/10 rounded-md">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <span className="font-bold text-primary">Cuenta Empresarial</span>
+                  </div>
+                </div>
+                <Button asChild className="w-full">
+                  <Link href="/new-order">
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Nuevo Pedido
+                  </Link>
+                </Button>
+                <Button onClick={handleLogout} variant="outline" className="w-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-3 space-y-8">
+            <SuperintendentManager businessData={businessData} />
+            <BusinessOrderPanel />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VISTA SUPERINTENDENTE ---
+  if (isSuperintendent) {
+    return (
+      <div className="container mx-auto py-12 px-4 animate-fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-1">
+            <Card className="w-full shadow-lg">
+              <CardHeader className="items-center text-center">
+                <Avatar className="h-24 w-24 mb-2">
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                    {nameFallback}
+                  </AvatarFallback>
+                </Avatar>
+                <CardTitle className="text-xl font-bold font-headline">
+                  {userData?.firstName} {userData?.lastName}
+                </CardTitle>
+                <CardDescription>Panel de Superintendente</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-xs text-muted-foreground">
+                  {user.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground truncate">{user.email}</span>
+                    </div>
+                  )}
+                  {userData?.businessName && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-foreground">{userData.businessName}</span>
+                    </div>
+                  )}
+                </div>
+                <Button asChild className="w-full">
+                  <Link href="/new-order">
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Nuevo Pedido
+                  </Link>
+                </Button>
+                <Button onClick={handleLogout} variant="outline" className="w-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Cerrar Sesión
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-3 space-y-8">
+            <SuperintendentOrderPanel />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VISTA USUARIO NORMAL ---
+  return (
+    <div className="container mx-auto py-12 px-4 animate-fade-in">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-1">
+          <Card className="w-full shadow-lg">
+            <CardHeader className="items-center text-center">
+              <Avatar className="h-24 w-24 mb-4">
+                <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                <AvatarFallback>{nameFallback}</AvatarFallback>
+              </Avatar>
+              <CardTitle className="text-3xl font-bold font-headline">{user.displayName || 'Usuario'}</CardTitle>
+              <CardDescription>Panel de Perfil</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4 text-sm text-muted-foreground">
+                {user.displayName && (
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-primary" />
+                    <span className="font-medium text-foreground">{user.displayName}</span>
+                  </div>
+                )}
+                {user.email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-primary" />
+                    <span className="font-medium text-foreground">{user.email}</span>
+                  </div>
+                )}
+                {user.phoneNumber && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="h-5 w-5 text-primary" />
+                    <span className="font-medium text-foreground">{user.phoneNumber}</span>
+                  </div>
+                )}
+              </div>
+              <Button onClick={handleLogout} variant="outline" className="w-full">
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="md:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 gap-4">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Nuevo Pedido</CardTitle>
+                <PackagePlus className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="w-full mt-4">
+                  <Link href="/new-order">Crear un nuevo pedido</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-start gap-3 text-sm sm:text-base animate-pulse-subtle">
+            <Phone className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <p className="text-muted-foreground">
+              <span className="font-bold text-foreground">¿Necesitas ayuda?</span> Para cancelar un pedido comunícate a este número:
+              <a href="tel:+5215581536176" className="ml-1 font-bold text-primary hover:underline inline-flex items-center gap-1">
+                +52 1 55 8153 6176
+              </a>
+            </p>
+          </div>
+          <UserOrderList />
+        </div>
+      </div>
+    </div>
   );
 }
